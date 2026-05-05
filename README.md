@@ -24,12 +24,24 @@ python cli.py init
 
 ```bash
 python cli.py ingest --source hn   # pull latest HN Who-is-hiring
-python cli.py score                # score every unscored job (respects daily $ cap)
+python cli.py prefilter            # free regex DQ pass — no API spend
+python cli.py score                # Claude scores survivors (Haiku, cheap)
 python cli.py rank                 # show top jobs in terminal
 python cli.py show <id>            # full job + breakdown
 python cli.py export               # write data/JobTracker.xlsx
-python cli.py budget               # show today's spend
+python cli.py budget               # show today's spend per stage
 ```
+
+## Three-tier funnel
+
+To keep credits focused on tailoring + outreach, scoring is layered:
+
+1. **Free regex prefilter** — drops jobs with no-sponsorship clauses, citizenship requirements, security clearances, senior-only titles, or non-engineering roles. $0.
+2. **Haiku 4.5 scoring** — fast cheap fit scoring on survivors (~$0.003/job).
+3. **Sonnet 4.5 generation** — reserved for the high-value work: resume tailoring, cover letters, cold emails on jobs you actually choose to apply to.
+
+Each stage has its own slice of the daily cap (`config.yaml` → `budget.stage_caps`),
+so high-volume scoring can never starve the tailoring budget.
 
 ## Config (`config.yaml`)
 

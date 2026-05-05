@@ -43,13 +43,22 @@ targets:
   salary_min_usd: 100000
 
 scoring:
-  model: claude-sonnet-4-5
+  model: claude-haiku-4-5-20251001
   threshold: 70
+
+generation:
+  model: claude-sonnet-4-5
+
+pricing:
+  claude-haiku-4-5-20251001: {input: 1.00, output: 5.00}
+  claude-sonnet-4-5:         {input: 3.00, output: 15.00}
 
 budget:
   daily_usd: 1.00
-  input_cost_per_mtok: 3.00
-  output_cost_per_mtok: 15.00
+  stage_caps:
+    scoring:   0.30
+    tailoring: 0.50
+    outreach:  0.20
 
 sources:
   hn_who_is_hiring:

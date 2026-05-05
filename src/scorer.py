@@ -1,4 +1,4 @@
-"""Score jobs against the user's resume + targets using Claude."""
+"""Score jobs against the user's resume + targets using Claude (cheap model)."""
 import json
 import os
 from anthropic import Anthropic
@@ -35,8 +35,9 @@ Score guidance:
 Only return the JSON object, no prose."""
 
 
-def score_job(profile_block: str, job: dict, model: str, budget_cfg: dict) -> dict:
-    budget.check(budget_cfg["daily_usd"])
+def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
+              pricing: dict) -> dict:
+    budget.check("scoring", stage_caps)
     client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     job_block = (
         f"Company: {job['company']}\n"
@@ -55,10 +56,11 @@ def score_job(profile_block: str, job: dict, model: str, budget_cfg: dict) -> di
         }],
     )
     budget.record(
+        stage="scoring",
+        model=model,
         input_tokens=msg.usage.input_tokens,
         output_tokens=msg.usage.output_tokens,
-        in_per_mtok=budget_cfg["input_cost_per_mtok"],
-        out_per_mtok=budget_cfg["output_cost_per_mtok"],
+        pricing=pricing,
     )
     text = msg.content[0].text.strip()
     if text.startswith("```"):

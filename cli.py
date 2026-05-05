@@ -6,7 +6,7 @@ from rich.table import Table
 from rich.progress import track
 
 from src import config as cfg_mod
-from src import db, resume, budget, export as export_mod
+from src import db, resume, budget, prefilter, export as export_mod
 from src.sources import hn
 from src.scorer import score_job, build_profile_block
 
@@ -47,6 +47,34 @@ def ingest(source: str = "hn"):
         raise typer.Exit(1)
 
 
+@app.command(name="prefilter")
+def prefilter_cmd():
+    """Run free regex disqualifiers over unscored jobs (no API spend)."""
+    jobs = db.unscored_jobs()
+    if not jobs:
+        console.print("[yellow]No unscored jobs[/yellow]")
+        return
+    dq = 0
+    for j in track(jobs, description="Pre-filtering"):
+        passed, reason = prefilter.check(dict(j))
+        if not passed:
+            db.save_score(
+                job_id=j["id"],
+                score=0,
+                fit_summary=f"[prefilter] {reason}",
+                disqualified=True,
+                disqualify_reason=reason,
+                matched_skills=json.dumps([]),
+                missing_skills=json.dumps([]),
+            )
+            dq += 1
+    console.print(
+        f"[green]Pre-filter done.[/green] Disqualified [bold]{dq}[/bold] of "
+        f"{len(jobs)} ({100*dq/len(jobs):.0f}%) for free. "
+        f"{len(jobs) - dq} remaining will go to Claude."
+    )
+
+
 @app.command()
 def score(limit: int = 0):
     """Score every unscored job in the DB. limit=0 means all."""
@@ -54,7 +82,8 @@ def score(limit: int = 0):
     resume_text = resume.extract_text(cfg["profile"]["resume_pdf"])
     profile = build_profile_block(cfg, resume_text)
     model = cfg["scoring"]["model"]
-    budget_cfg = cfg["budget"]
+    stage_caps = cfg["budget"]["stage_caps"]
+    pricing = cfg["pricing"]
 
     jobs = db.unscored_jobs()
     if limit:
@@ -63,17 +92,19 @@ def score(limit: int = 0):
         console.print("[yellow]No unscored jobs[/yellow]")
         return
 
-    spent = budget.today_spent_usd()
-    remaining = budget.remaining_usd(budget_cfg["daily_usd"])
+    spent = budget.stage_spent_usd("scoring")
+    remaining = budget.stage_remaining_usd("scoring", stage_caps)
     console.print(
         f"[cyan]Scoring up to {len(jobs)} jobs with {model}. "
-        f"Today's spend: ${spent:.4f} / ${budget_cfg['daily_usd']:.2f} "
+        f"Scoring stage today: ${spent:.4f} / ${stage_caps['scoring']:.2f} "
         f"(${remaining:.4f} remaining)[/cyan]"
     )
     stopped_for_budget = False
     for j in track(jobs, description="Scoring"):
         try:
-            result = score_job(profile, dict(j), model=model, budget_cfg=budget_cfg)
+            result = score_job(
+                profile, dict(j), model=model, stage_caps=stage_caps, pricing=pricing,
+            )
         except budget.BudgetExceeded as e:
             console.print(f"[yellow]{e}[/yellow]")
             stopped_for_budget = True
@@ -90,11 +121,11 @@ def score(limit: int = 0):
             matched_skills=json.dumps(result.get("matched_skills", [])),
             missing_skills=json.dumps(result.get("missing_skills", [])),
         )
-    final_spent = budget.today_spent_usd()
+    final = budget.stage_spent_usd("scoring")
     if stopped_for_budget:
-        console.print(f"[yellow]Stopped early. Spent ${final_spent:.4f} today.[/yellow]")
+        console.print(f"[yellow]Stopped early. Scoring spend today: ${final:.4f}[/yellow]")
     else:
-        console.print(f"[green]Scoring complete. Spent ${final_spent:.4f} today.[/green]")
+        console.print(f"[green]Scoring complete. Scoring spend today: ${final:.4f}[/green]")
 
 
 @app.command()
@@ -108,14 +139,16 @@ def rank(threshold: int | None = None, limit: int = 30, all: bool = False):
         return
 
     table = Table(show_lines=False)
+    table.add_column("ID", justify="right")
     table.add_column("Score", justify="right", style="bold")
     table.add_column("Company")
     table.add_column("Title")
     table.add_column("Location")
-    table.add_column("Why", overflow="fold", max_width=60)
+    table.add_column("Why", overflow="fold", max_width=55)
     for r in rows:
         score_color = "green" if r["score"] >= 80 else ("yellow" if r["score"] >= 70 else "white")
         table.add_row(
+            str(r["id"]),
             f"[{score_color}]{r['score']}[/{score_color}]",
             (r["company"] or "")[:28],
             (r["title"] or "")[:32],
@@ -160,14 +193,28 @@ def export():
 
 @app.command(name="budget")
 def budget_cmd():
-    """Show today's API spend."""
+    """Show today's API spend per stage."""
     cfg = cfg_mod.load()
-    cap = cfg["budget"]["daily_usd"]
-    spent = budget.today_spent_usd()
-    console.print(
-        f"Today: [bold]${spent:.4f}[/bold] / ${cap:.2f}  "
-        f"(${budget.remaining_usd(cap):.4f} remaining)"
+    caps = cfg["budget"]["stage_caps"]
+    daily = cfg["budget"]["daily_usd"]
+
+    table = Table(title="Today's spend by stage")
+    table.add_column("Stage")
+    table.add_column("Spent", justify="right")
+    table.add_column("Cap", justify="right")
+    table.add_column("Remaining", justify="right")
+    for stage, cap in caps.items():
+        spent = budget.stage_spent_usd(stage)
+        rem = budget.stage_remaining_usd(stage, caps)
+        color = "red" if rem == 0 else ("yellow" if rem < cap * 0.2 else "green")
+        table.add_row(stage, f"${spent:.4f}", f"${cap:.2f}", f"[{color}]${rem:.4f}[/{color}]")
+    table.add_row(
+        "[bold]TOTAL[/bold]",
+        f"[bold]${budget.today_spent_usd():.4f}[/bold]",
+        f"[bold]${daily:.2f}[/bold]",
+        "",
     )
+    console.print(table)
 
 
 if __name__ == "__main__":
