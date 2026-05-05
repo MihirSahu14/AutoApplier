@@ -14,13 +14,33 @@ Currently implemented (v0.1):
 ## Setup
 
 ```bash
+# Backend
 pip install -r requirements.txt
-cp .env.example .env             # fill in API keys
-cp config.example.yaml config.yaml  # fill in your name, resume path, targets
+cp .env.example .env                  # fill in API keys
+cp config.example.yaml config.yaml    # fill in your name, resume path, targets
 python cli.py init
+
+# Frontend (one-time)
+cd frontend && npm install && cd ..
 ```
 
-## Usage
+## Run the Web UI
+
+Two terminals:
+
+```bash
+# Terminal 1 — backend (http://localhost:8765)
+python webapp.py
+
+# Terminal 2 — frontend (http://localhost:5173)
+cd frontend && npm run dev
+```
+
+Open http://localhost:5173. You get a job list with filters, score pills, and
+one-click buttons for: ingest HN, prefilter, score, export Excel, generate
+tailored package, open job page, download resume/cover, update status & notes.
+
+## Usage (CLI, still works)
 
 ```bash
 python cli.py ingest --source hn   # pull latest HN Who-is-hiring

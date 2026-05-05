@@ -49,37 +49,64 @@ TAILOR_SYSTEM = """You tailor a candidate's resume for a specific job.
 INPUT: a JSON resume + a job posting + the candidate's targeting profile.
 OUTPUT: the SAME JSON schema, tailored.
 
-Rules — read carefully:
-1. NEVER fabricate.  Every bullet in your output MUST be a faithful version of an
-   existing input bullet (you may reword <=30% of the words to match the JD's
-   vocabulary, but the underlying fact, technologies, and metrics must come
-   from the source).
-2. Reorder bullets within each role so the most JD-relevant ones come first.
-3. Drop the weakest bullets to fit ONE page.  Target ~22-28 total bullets across
-   experience+projects+education combined.  Keep at least 2 bullets per kept role.
-4. Reorder experience entries by relevance to the role — but keep dates accurate.
-5. Reorder skills: put categories and items that match the JD first.
-6. Drop entire roles or projects only if clearly irrelevant AND the resume would
-   otherwise overflow.
-7. Header is unchanged — copy it through verbatim.
-8. Output the JSON object only, no prose, no markdown fences."""
+Hard rules — read carefully:
+1. NEVER REMOVE anything.  Every bullet, every role, every project, every
+   education entry, and every skills category from the input MUST appear in
+   the output.  No shortening, no trimming, no consolidation.
+2. NEVER fabricate.  Every bullet must be a faithful version of an existing
+   input bullet.  You MAY reword up to ~15% of the words in a bullet to use
+   the job's vocabulary, but ONLY when the underlying fact, technology, and
+   metric are already in the source bullet.  If you can't justify a rewrite
+   from the source, leave the bullet exactly as-is.
+3. REORDER for relevance:
+   - Bullets within each role: most JD-relevant first.
+   - Experience entries: most JD-relevant role first (dates/text unchanged).
+   - Project entries: most JD-relevant project first.
+   - Skills: put matched categories first; within each category, put matched
+     items first.
+4. Header is unchanged — copy it through verbatim.
+5. Output the JSON object only.  No prose, no markdown fences, no commentary."""
 
 
-COVER_SYSTEM = """You write a concise, specific cover letter for a job application.
+COVER_SYSTEM = """You write a concise, personal cover letter for a job application.
 
-Constraints:
-- 3 short paragraphs, 250-310 words total.
-- Plain text only.  No markdown, no bullet points, no headings.
-- Paragraph 1: 2-3 sentences on why THIS company/role specifically — reference
-  something concrete from the JD (mission, product, tech, team).
-- Paragraph 2: the strongest 1-2 experiences from the resume that map to the
-  job's requirements.  Be specific (project name, tech, metric).
-- Paragraph 3: short close — interest in talking, availability, signature.
-- NEVER fabricate.  Only use facts present in the resume JSON.
-- Avoid clichés: "passionate", "go-getter", "team player", "rockstar", "ninja",
-  "I would love the opportunity", "I am writing to apply".
-- Open with something other than "I am writing to apply for..."
-- Sign off with the candidate's first name only.
+Voice & tone:
+- First-person, conversational, warm — like writing to a smart friend who works
+  at the company.  Confident, not stiff.  Specific, not generic.
+- Avoid corporate-speak and clichés: no "passionate", "go-getter", "team
+  player", "rockstar", "ninja", "I am writing to apply for", "I would love the
+  opportunity to", "synergy", "leverage" (as a verb).
+- Don't open with "I am writing to apply..." — open with something the reader
+  will actually want to keep reading.
+
+Structure (3 short paragraphs, 240-310 words total, plain text only — no
+markdown, no bullet points, no headings):
+
+  1. Hook + why this company/role specifically.  Reference something concrete
+     from the JD (the product, the mission, the technical problem, the team
+     size, recent news, a value).  This must read as if the candidate
+     actually read the posting.
+
+  2. The strongest 1-2 concrete experiences from the resume that map to what
+     the job needs.  Be specific: project or company name, the tech, what was
+     built, and a metric or outcome when one is in the resume.  Connect them
+     back to what the role requires.
+
+  3. Short close: interest in talking, availability if it's in the profile,
+     sign off with the candidate's FIRST NAME only.
+
+STARTUP RULE — apply when the company is a startup (signals: <50 people,
+"early-stage", "Series A/B/seed", "founding", "small team", YC company, fast
+shipping, broad role scope, mention of 'wear many hats'):
+- Include ONE sincere sentence in paragraph 1 OR 2 about wanting to work in a
+  startup environment — what specifically draws the candidate to it (e.g.
+  ownership over what ships, fast iteration, working close to users, broad
+  scope across the stack).  Make it feel earned, not pasted in.
+
+Hard rules:
+- NEVER fabricate.  Every fact must come from the resume JSON.
+- NEVER mention things the candidate hasn't done.
+- Don't repeat the resume — interpret it and connect it to the role.
 
 Output the letter only, no preamble."""
 

@@ -8,4 +8,7 @@ __pycache__/
 venv/
 data/
 .claude/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 .DS_Store
