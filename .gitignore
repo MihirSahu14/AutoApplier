@@ -1,0 +1,11 @@
+.env
+config.yaml
+*.db
+*.sqlite*
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+.claude/
+.DS_Store

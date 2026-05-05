@@ -1,0 +1,57 @@
+profile:
+  name: Your Name
+  email: you@example.com
+  phone: "555-555-5555"
+  linkedin: https://www.linkedin.com/in/yourhandle
+  github: https://github.com/yourhandle
+  portfolio: https://yourportfolio.example.com
+  location: City, ST
+  resume_pdf: C:\path\to\Your Resume.pdf
+
+visa:
+  status: F-1 (OPT/STEM-OPT eligible)
+  needs_h1b_eventually: true
+  disqualify_if:
+    - us citizen required
+    - us citizenship required
+    - active security clearance
+    - public trust clearance
+    - no sponsorship
+    - will not sponsor
+    - cannot sponsor
+
+targets:
+  roles:
+    - new grad software engineer
+    - software engineer
+    - ai engineer
+    - founding engineer
+    - founding software engineer
+  company_size:
+    min: 10
+    max: 50
+  locations_ok:
+    - united states
+    - usa
+    - remote (us)
+  locations_preferred:
+    - new york
+    - nyc
+    - san francisco
+    - bay area
+    - california
+  salary_min_usd: 100000
+
+scoring:
+  model: claude-sonnet-4-5
+  threshold: 70
+
+budget:
+  daily_usd: 1.00
+  input_cost_per_mtok: 3.00
+  output_cost_per_mtok: 15.00
+
+sources:
+  hn_who_is_hiring:
+    enabled: true
+    months_back: 1
