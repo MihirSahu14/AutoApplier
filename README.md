@@ -28,9 +28,25 @@ python cli.py prefilter            # free regex DQ pass — no API spend
 python cli.py score                # Claude scores survivors (Haiku, cheap)
 python cli.py rank                 # show top jobs in terminal
 python cli.py show <id>            # full job + breakdown
+python cli.py apply <id>           # tailored resume + cover letter -> data/output/<id>_<co>/
 python cli.py export               # write data/JobTracker.xlsx
 python cli.py budget               # show today's spend per stage
 ```
+
+## Tailoring (`apply`)
+
+`python cli.py apply 7` produces, into `data/output/7_neuralink/`:
+
+- `Resume_<name>.docx` — 1-page tailored resume.  Bullets are **reordered and
+  lightly rephrased**, never fabricated.  Skills are reordered to lead with
+  matched ones.
+- `CoverLetter_<name>_<company>.docx` — 3-paragraph cover letter (~280 words),
+  grounded in resume facts only.
+- `tailored_resume.json` and `cover_letter.txt` for inspection / further edits.
+
+The application is recorded in the `applications` table; the next `export` run
+puts the file paths in the **Applications** tab of `JobTracker.xlsx` next to
+the job, with status defaulted to "To apply".
 
 ## Three-tier funnel
 

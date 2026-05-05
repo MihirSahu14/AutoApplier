@@ -1,14 +1,22 @@
 """Auto Job Applier CLI."""
 import json
+import re
+from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.progress import track
 
 from src import config as cfg_mod
-from src import db, resume, budget, prefilter, export as export_mod
+from src import db, resume, budget, prefilter, tailor, docx_render, export as export_mod
 from src.sources import hn
 from src.scorer import score_job, build_profile_block
+
+
+def _slug(s: str, n: int = 40) -> str:
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", s or "").strip("_")
+    return (s[:n] or "company").lower()
 
 app = typer.Typer(help="Auto Job Applier")
 console = Console()
@@ -182,6 +190,105 @@ def show(job_id: int):
     console.print(f"[bold]Missing:[/bold] {row['missing_skills']}")
     console.rule("Description")
     console.print(row["description"])
+
+
+@app.command()
+def apply(
+    job_id: int,
+    no_cover: bool = typer.Option(False, "--no-cover", help="Skip cover letter"),
+    regen_base: bool = typer.Option(False, "--regen-base", help="Re-parse the base resume"),
+):
+    """Generate a tailored 1-page resume + cover letter for one job.
+
+    Outputs to data/output/<job_id>_<company_slug>/. Records paths in the
+    applications table so they show up in the Excel tracker.
+    """
+    cfg = cfg_mod.load()
+    job_row = db.get_job(job_id)
+    if not job_row:
+        console.print(f"[red]No job {job_id}[/red]")
+        raise typer.Exit(1)
+    job = dict(job_row)
+
+    model = cfg["generation"]["model"]
+    stage_caps = cfg["budget"]["stage_caps"]
+    pricing = cfg["pricing"]
+
+    spent = budget.stage_spent_usd("tailoring")
+    remaining = budget.stage_remaining_usd("tailoring", stage_caps)
+    console.print(
+        f"[cyan]Tailoring stage today: ${spent:.4f} / ${stage_caps['tailoring']:.2f} "
+        f"(${remaining:.4f} remaining). Model: {model}.[/cyan]"
+    )
+
+    resume_text = resume.extract_text(cfg["profile"]["resume_pdf"])
+    profile = build_profile_block(cfg, resume_text)
+
+    try:
+        console.print("[cyan]Parsing base resume…[/cyan] (cached after first run)")
+        base = tailor.parse_base_resume(
+            resume_text, model=model, stage_caps=stage_caps, pricing=pricing,
+            force=regen_base,
+        )
+
+        console.print(f"[cyan]Tailoring resume for {job['company']}…[/cyan]")
+        tailored = tailor.tailor_resume(
+            base, job, profile, model=model, stage_caps=stage_caps, pricing=pricing,
+        )
+        # Override Claude-generated header with authoritative profile from config
+        p = cfg["profile"]
+        tailored["header"] = {
+            "name": p["name"],
+            "location": p["location"],
+            "phone": p["phone"],
+            "email": p["email"],
+            "links": [
+                {"label": "LinkedIn", "url": p["linkedin"]},
+                {"label": "GitHub", "url": p["github"]},
+                {"label": "Portfolio", "url": p["portfolio"]},
+            ],
+        }
+
+        cover_text = None
+        if not no_cover:
+            console.print("[cyan]Drafting cover letter…[/cyan]")
+            cover_text = tailor.write_cover_letter(
+                base, job, profile, model=model, stage_caps=stage_caps, pricing=pricing,
+            )
+    except budget.BudgetExceeded as e:
+        console.print(f"[red]Stopped: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Output files
+    out_dir = Path("data") / "output" / f"{job_id}_{_slug(job['company'])}"
+    name_slug = _slug(cfg["profile"]["name"])
+    resume_path = out_dir / f"Resume_{name_slug}.docx"
+    docx_render.render_resume(tailored, resume_path)
+    out_dir.joinpath("tailored_resume.json").write_text(
+        json.dumps(tailored, indent=2), encoding="utf-8"
+    )
+
+    cover_path = None
+    if cover_text:
+        cover_path = out_dir / f"CoverLetter_{name_slug}_{_slug(job['company'])}.docx"
+        docx_render.render_cover_letter(
+            cover_text, tailored.get("header", {}), job["company"], cover_path,
+        )
+        out_dir.joinpath("cover_letter.txt").write_text(cover_text, encoding="utf-8")
+
+    db.upsert_application(
+        job_id=job_id,
+        status="To apply",
+        resume_path=str(resume_path),
+        cover_letter_path=str(cover_path) if cover_path else None,
+    )
+
+    console.rule(f"[green]Application package for job {job_id}: {job['company']}")
+    console.print(f"  Resume:       [bold]{resume_path}[/bold]")
+    if cover_path:
+        console.print(f"  Cover letter: [bold]{cover_path}[/bold]")
+    console.print(f"  Job URL:      {job['url']}")
+    console.print(f"  Tailoring spend today: ${budget.stage_spent_usd('tailoring'):.4f}")
 
 
 @app.command()

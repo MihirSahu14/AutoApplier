@@ -76,8 +76,11 @@ def export() -> Path:
             "SELECT j.id, j.source, j.company, j.title, j.location, j.url, "
             "j.posted_at, j.ingested_at, j.description, "
             "s.score, s.fit_summary, s.disqualified, s.disqualify_reason, "
-            "s.matched_skills, s.missing_skills "
-            "FROM jobs j LEFT JOIN scores s ON s.job_id = j.id "
+            "s.matched_skills, s.missing_skills, "
+            "a.status AS app_status, a.resume_path, a.cover_letter_path, a.notes "
+            "FROM jobs j "
+            "LEFT JOIN scores s ON s.job_id = j.id "
+            "LEFT JOIN applications a ON a.job_id = j.id "
             "ORDER BY COALESCE(s.score, -1) DESC, j.id DESC"
         ).fetchall()
 
@@ -99,17 +102,19 @@ def export() -> Path:
         if r["score"] is None or r["disqualified"] or (r["score"] or 0) < 60:
             continue
         prev = preserved.get(r["id"], {})
+        # DB application row wins over preserved Excel edits for path fields
+        # (those are auto-generated). User-editable fields fall back to Excel.
         ws_app.append([
             r["id"], r["score"], r["company"], r["title"], r["location"],
             r["source"], r["url"],
-            prev.get("Status") or "Not started",
+            r["app_status"] or prev.get("Status") or "Not started",
             prev.get("Applied On"),
-            prev.get("Resume Path"),
-            prev.get("Cover Letter Path"),
+            r["resume_path"] or prev.get("Resume Path"),
+            r["cover_letter_path"] or prev.get("Cover Letter Path"),
             prev.get("Contact Name"),
             prev.get("Contact Email"),
             prev.get("Email Sent"),
-            prev.get("Notes"),
+            r["notes"] or prev.get("Notes"),
             r["fit_summary"],
             ", ".join(json.loads(r["matched_skills"] or "[]")),
             ", ".join(json.loads(r["missing_skills"] or "[]")),

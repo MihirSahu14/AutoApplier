@@ -102,6 +102,37 @@ def save_score(job_id: int, score: int, fit_summary: str, disqualified: bool,
         )
 
 
+def get_job(job_id: int):
+    with connect() as c:
+        return c.execute(
+            "SELECT j.*, s.score, s.fit_summary, s.disqualified, s.disqualify_reason "
+            "FROM jobs j LEFT JOIN scores s ON s.job_id = j.id WHERE j.id = ?",
+            (job_id,),
+        ).fetchone()
+
+
+def upsert_application(job_id: int, **fields):
+    with connect() as c:
+        existing = c.execute(
+            "SELECT id FROM applications WHERE job_id = ?", (job_id,)
+        ).fetchone()
+        if existing:
+            sets = ", ".join(f"{k} = ?" for k in fields)
+            c.execute(
+                f"UPDATE applications SET {sets}, updated_at = CURRENT_TIMESTAMP "
+                f"WHERE job_id = ?",
+                (*fields.values(), job_id),
+            )
+            return existing["id"]
+        cols = ["job_id"] + list(fields)
+        c.execute(
+            f"INSERT INTO applications ({', '.join(cols)}) VALUES "
+            f"({', '.join('?' for _ in cols)})",
+            (job_id, *fields.values()),
+        )
+        return c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+
 def ranked_jobs(threshold: int = 0, include_disqualified: bool = False, limit: int = 50):
     sql = (
         "SELECT j.id, j.source, j.company, j.title, j.location, j.url, "
