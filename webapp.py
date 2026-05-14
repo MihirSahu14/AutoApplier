@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src import budget, db, pipeline, prefilter, profile as profile_mod
+from src import autofill, budget, db, pipeline, prefilter, profile as profile_mod
 from src import config as cfg_mod
 from src import export as export_mod
 from src.scorer import score_job
@@ -278,6 +278,38 @@ def api_open(job_id: int):
     j = dict(_job_or_404(job_id))
     if j["url"]:
         webbrowser.open(j["url"])
+    return {"ok": True}
+
+
+class AutofillBody(BaseModel):
+    url: str | None = None  # override URL (job.url often isn't the apply form)
+
+
+@app.post("/api/jobs/{job_id}/autofill")
+def api_autofill(job_id: int, body: AutofillBody):
+    j = dict(_job_or_404(job_id))
+    target_url = (body.url or "").strip() or j["url"]
+    if not target_url:
+        raise HTTPException(400, "No URL to open.")
+
+    profile = profile_mod.load()
+    if not profile_mod.is_configured():
+        raise HTTPException(412, "Complete profile setup first.")
+
+    paths = pipeline.package_paths(
+        job_id, j["company"], profile["contact"]["name"] or "candidate"
+    )
+    if not paths["resume_docx"].exists():
+        raise HTTPException(409, "Generate the tailored package first (resume/cover not found).")
+
+    autofill.launch_autofill_thread(
+        target_url, profile,
+        paths["resume_docx"],
+        paths["cover_docx"] if paths["cover_docx"].exists() else None,
+    )
+    # Save the apply URL on the application row so it persists
+    db.upsert_application(job_id=job_id, status=j.get("app_status") or "To apply",
+                          notes=j.get("notes"))
     return {"ok": True}
 
 

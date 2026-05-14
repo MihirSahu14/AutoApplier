@@ -121,6 +121,11 @@ export const api = {
     ),
   openJob: (id: number) =>
     req<{ ok: true }>(`/api/jobs/${id}/open`, { method: "POST" }),
+  autofill: (id: number, url?: string) =>
+    req<{ ok: true }>(`/api/jobs/${id}/autofill`, {
+      method: "POST",
+      body: JSON.stringify({ url: url || null }),
+    }),
   runIngest: () => req<{ started: boolean }>("/api/run/ingest", { method: "POST" }),
   runPrefilter: () => req<{ started: boolean }>("/api/run/prefilter", { method: "POST" }),
   runScore: () => req<{ started: boolean }>("/api/run/score", { method: "POST" }),

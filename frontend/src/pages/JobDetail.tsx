@@ -3,17 +3,20 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, downloadUrl } from "../api";
 import { ScorePill } from "../components/ScorePill";
+import { useToast } from "../components/Toast";
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const jobId = Number(id);
   const qc = useQueryClient();
 
+  const toast = useToast();
   const job = useQuery({ queryKey: ["job", jobId], queryFn: () => api.job(jobId) });
   const meta = useQuery({ queryKey: ["meta"], queryFn: api.meta });
 
   const [status, setStatus] = useState("");
   const [notes, setNotes] = useState("");
+  const [applyUrl, setApplyUrl] = useState("");
   useEffect(() => {
     if (job.data) {
       setStatus(job.data.app_status ?? "Not started");
@@ -35,6 +38,12 @@ export function JobDetail() {
   });
 
   const open = useMutation({ mutationFn: () => api.openJob(jobId) });
+
+  const autofill = useMutation({
+    mutationFn: () => api.autofill(jobId, applyUrl.trim() || undefined),
+    onSuccess: () => toast("Browser launching… review and submit when ready.", "ok"),
+    onError: (e: any) => toast(e.message, "err"),
+  });
 
   if (job.isLoading) return <div className="text-slate-400">Loading…</div>;
   if (!job.data) return <div className="text-red-700">Job not found.</div>;
@@ -96,6 +105,34 @@ export function JobDetail() {
         {tailor.error && (
           <div className="mt-3 text-sm text-red-700">{(tailor.error as Error).message}</div>
         )}
+
+        {/* Autofill row */}
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <div className="text-xs uppercase text-slate-500 tracking-wide mb-2">
+            Open & autofill application
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text" value={applyUrl}
+              onChange={(e) => setApplyUrl(e.target.value)}
+              placeholder={`Apply URL (leave blank to use: ${j.url || "—"})`}
+              className="flex-1 min-w-[260px] px-3 py-2 border border-slate-300 rounded text-sm"
+            />
+            <button
+              disabled={autofill.isPending || !j.have_resume}
+              onClick={() => autofill.mutate()}
+              className="px-3 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+              title={!j.have_resume ? "Generate the package first" : "Launch browser with prefilled fields"}
+            >
+              {autofill.isPending ? "Launching…" : "Open with autofill"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            Opens a real Chromium window with your resume uploaded and standard fields
+            (name, email, phone, links, location) prefilled. Logins persist across runs.
+            <strong> Nothing is submitted</strong> — you review and click apply.
+          </p>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 mt-4">

@@ -24,7 +24,8 @@ Implemented:
 ```bash
 # Backend
 pip install -r requirements.txt
-cp config.example.yaml config.yaml   # only app-level knobs (models, budget)
+python -m playwright install chromium    # for the autofill feature
+cp config.example.yaml config.yaml       # only app-level knobs (models, budget)
 
 # Frontend (one-time)
 cd frontend && npm install && cd ..
