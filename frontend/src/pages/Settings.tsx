@@ -120,6 +120,8 @@ export function Settings() {
         </div>
       </section>
 
+      <CompaniesEditor />
+
       <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
         <h2 className="font-semibold mb-3">API keys</h2>
         <p className="text-xs text-slate-500 mb-3">Leave blank to keep the existing key.</p>
@@ -141,5 +143,60 @@ export function Settings() {
         </button>
       </div>
     </div>
+  );
+}
+
+function CompaniesEditor() {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["companies"], queryFn: api.getCompanies });
+  const [gh, setGh] = useState("");
+  const [lv, setLv] = useState("");
+  const [as_, setAs] = useState("");
+  useEffect(() => {
+    if (!data) return;
+    setGh(data.greenhouse.join("\n"));
+    setLv(data.lever.join("\n"));
+    setAs(data.ashby.join("\n"));
+  }, [data?.greenhouse?.length]);
+
+  const save = async () => {
+    try {
+      const toList = (s: string) => s.split("\n").map(x => x.trim()).filter(Boolean);
+      await api.setCompanies({
+        greenhouse: toList(gh), lever: toList(lv), ashby: toList(as_),
+      });
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      toast("Saved companies", "ok");
+    } catch (e: any) { toast(e.message, "err"); }
+  };
+
+  return (
+    <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <h2 className="font-semibold mb-1">Companies to scrape</h2>
+      <p className="text-xs text-slate-500 mb-3">
+        One slug per line. The slug is what you see in the company's public job-board URL:
+        <code className="ml-1 bg-slate-100 px-1 rounded">jobs.lever.co/<b>slug</b></code>,
+        <code className="ml-1 bg-slate-100 px-1 rounded">boards.greenhouse.io/<b>slug</b></code>,
+        <code className="ml-1 bg-slate-100 px-1 rounded">jobs.ashbyhq.com/<b>slug</b></code>.
+      </p>
+      <div className="grid md:grid-cols-3 gap-3">
+        <Field label="Greenhouse">
+          <textarea rows={10} className={inputCls} value={gh} onChange={(e) => setGh(e.target.value)} />
+        </Field>
+        <Field label="Lever">
+          <textarea rows={10} className={inputCls} value={lv} onChange={(e) => setLv(e.target.value)} />
+        </Field>
+        <Field label="Ashby">
+          <textarea rows={10} className={inputCls} value={as_} onChange={(e) => setAs(e.target.value)} />
+        </Field>
+      </div>
+      <div className="flex justify-end mt-3">
+        <button onClick={save}
+                className="px-3 py-1.5 text-sm rounded bg-slate-900 text-white">
+          Save companies
+        </button>
+      </div>
+    </section>
   );
 }

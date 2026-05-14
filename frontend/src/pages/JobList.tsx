@@ -25,10 +25,14 @@ export function JobList() {
   };
 
   const action = useMutation({
-    mutationFn: async (kind: "ingest" | "prefilter" | "score" | "export") => {
-      if (kind === "ingest")    return { ...(await api.runIngest()),    label: "Ingest"    };
-      if (kind === "prefilter") return { ...(await api.runPrefilter()), label: "Pre-filter" };
-      if (kind === "score")     return { ...(await api.runScore()),     label: "Scoring"   };
+    mutationFn: async (kind: "ingest" | "ingest-hn" | "ingest-gh" | "ingest-lever" | "ingest-ashby" | "prefilter" | "score" | "export") => {
+      if (kind === "ingest")        return { ...(await api.runIngest("all")),       label: "Ingest (all)" };
+      if (kind === "ingest-hn")     return { ...(await api.runIngest("hn")),        label: "Ingest HN" };
+      if (kind === "ingest-gh")     return { ...(await api.runIngest("greenhouse")),label: "Ingest Greenhouse" };
+      if (kind === "ingest-lever")  return { ...(await api.runIngest("lever")),     label: "Ingest Lever" };
+      if (kind === "ingest-ashby")  return { ...(await api.runIngest("ashby")),     label: "Ingest Ashby" };
+      if (kind === "prefilter")     return { ...(await api.runPrefilter()),         label: "Pre-filter" };
+      if (kind === "score")         return { ...(await api.runScore()),             label: "Scoring" };
       const r = await api.runExport();
       return { started: true, path: r.path, label: "Export" };
     },
@@ -46,9 +50,25 @@ export function JobList() {
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-4">
-        <Btn onClick={() => action.mutate("ingest")} cls="bg-blue-600 hover:bg-blue-700">
-          Ingest HN
-        </Btn>
+        <div className="relative inline-block group">
+          <Btn onClick={() => action.mutate("ingest")} cls="bg-blue-600 hover:bg-blue-700">
+            Ingest jobs ▾
+          </Btn>
+          <div className="hidden group-hover:block absolute top-full left-0 mt-1 z-20 bg-white border border-slate-200 rounded shadow-md py-1 min-w-[180px]">
+            {[
+              ["ingest", "All sources"],
+              ["ingest-hn", "HN Who-is-hiring"],
+              ["ingest-gh", "Greenhouse companies"],
+              ["ingest-lever", "Lever companies"],
+              ["ingest-ashby", "Ashby companies"],
+            ].map(([key, label]) => (
+              <button key={key} onClick={() => action.mutate(key as any)}
+                      className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100">
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <Btn onClick={() => action.mutate("prefilter")} cls="bg-slate-700 hover:bg-slate-800">
           Pre-filter (free)
         </Btn>

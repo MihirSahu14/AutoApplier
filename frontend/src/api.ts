@@ -153,7 +153,13 @@ export const api = {
     ),
   markSent: (contactId: number) =>
     req<{ ok: true }>(`/api/contacts/${contactId}/mark-sent`, { method: "POST" }),
-  runIngest: () => req<{ started: boolean }>("/api/run/ingest", { method: "POST" }),
+  runIngest: (source: "all" | "hn" | "greenhouse" | "lever" | "ashby" = "all") =>
+    req<{ started: boolean }>(`/api/run/ingest?source=${source}`, { method: "POST" }),
+  getCompanies: () => req<{ greenhouse: string[]; lever: string[]; ashby: string[] }>(
+    "/api/companies"
+  ),
+  setCompanies: (body: { greenhouse: string[]; lever: string[]; ashby: string[] }) =>
+    req<{ ok: true }>("/api/companies", { method: "PUT", body: JSON.stringify(body) }),
   runPrefilter: () => req<{ started: boolean }>("/api/run/prefilter", { method: "POST" }),
   runScore: () => req<{ started: boolean }>("/api/run/score", { method: "POST" }),
   runExport: () => req<{ path: string }>("/api/run/export", { method: "POST" }),

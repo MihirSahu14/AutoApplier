@@ -18,7 +18,7 @@ from src import autofill, budget, cold_email, contacts as contacts_mod, db, pipe
 from src import config as cfg_mod
 from src import export as export_mod
 from src.scorer import score_job
-from src.sources import hn
+from src.sources import hn, greenhouse, lever, ashby
 
 ROOT = Path(__file__).resolve().parent
 
@@ -371,23 +371,62 @@ def api_autofill(job_id: int, body: AutofillBody):
 
 # ---- bulk actions ----
 
+def _load_companies() -> dict:
+    import yaml
+    path = ROOT / "data" / "companies.yaml"
+    if not path.exists():
+        return {"greenhouse": [], "lever": [], "ashby": []}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _ingest_one(source: str, rows: list[dict]):
+    for r in rows:
+        db.upsert_job(
+            source=source, source_id=r["source_id"],
+            company=r["company"], title=r["title"],
+            location=r["location"], url=r["url"],
+            description=r["description"], posted_at=r["posted_at"],
+        )
+
+
 @app.post("/api/run/ingest")
-def api_run_ingest():
+def api_run_ingest(source: str = "all"):
     cfg = cfg_mod.load()
     months = cfg["sources"]["hn_who_is_hiring"]["months_back"]
+    companies = _load_companies()
 
     def _do():
-        rows = hn.fetch(months_back=months)
-        for r in rows:
-            db.upsert_job(
-                source="hn", source_id=r["source_id"],
-                company=r["company"], title=r["title"],
-                location=r["location"], url=r["url"],
-                description=r["description"], posted_at=r["posted_at"],
-            )
+        if source in ("all", "hn"):
+            try: _ingest_one("hn", hn.fetch(months_back=months))
+            except Exception as e: print(f"[ingest:hn] {e}")
+        if source in ("all", "greenhouse"):
+            try: _ingest_one("greenhouse", greenhouse.fetch(companies.get("greenhouse", [])))
+            except Exception as e: print(f"[ingest:gh] {e}")
+        if source in ("all", "lever"):
+            try: _ingest_one("lever", lever.fetch(companies.get("lever", [])))
+            except Exception as e: print(f"[ingest:lever] {e}")
+        if source in ("all", "ashby"):
+            try: _ingest_one("ashby", ashby.fetch(companies.get("ashby", [])))
+            except Exception as e: print(f"[ingest:ashby] {e}")
 
-    started = _start("ingest", _do)
-    return {"started": started}
+    return {"started": _start(f"ingest:{source}", _do)}
+
+
+@app.get("/api/companies")
+def api_get_companies():
+    return _load_companies()
+
+
+@app.put("/api/companies")
+def api_set_companies(body: dict):
+    import yaml
+    path = ROOT / "data" / "companies.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # whitelist keys
+    out = {k: [str(s).strip() for s in (body.get(k) or []) if str(s).strip()]
+           for k in ("greenhouse", "lever", "ashby")}
+    path.write_text(yaml.safe_dump(out, sort_keys=False), encoding="utf-8")
+    return {"ok": True, **out}
 
 
 @app.post("/api/run/prefilter")
