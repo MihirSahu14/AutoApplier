@@ -50,7 +50,55 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export type SetupStatus = {
+  configured: boolean;
+  has_name: boolean;
+  has_email: boolean;
+  has_resume: boolean;
+  has_experience_summary: boolean;
+  has_anthropic_key: boolean;
+  db_initialized: boolean;
+};
+
+export type Profile = {
+  contact: {
+    name: string; email: string; phone: string;
+    linkedin: string; github: string; portfolio: string; location: string;
+  };
+  experience_summary: string;
+  resume_pdf: string;
+  resume_pdf_filename: string;
+  visa: {
+    status: string;
+    needs_sponsorship: boolean;
+    disqualify_if: string[];
+  };
+  targets: {
+    roles: string[];
+    company_size_min: number;
+    company_size_max: number;
+    locations_ok: string[];
+    locations_preferred: string[];
+    salary_min_usd: number;
+  };
+  api_keys: { anthropic: string; hunter: string; apollo: string; serpapi: string };
+};
+
 export const api = {
+  setupStatus: () => req<SetupStatus>("/api/setup-status"),
+  getProfile: () => req<Profile>("/api/profile"),
+  updateProfile: (patch: Partial<Profile>) =>
+    req<{ ok: true }>("/api/profile", {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  uploadResume: async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/profile/upload-resume", { method: "POST", body: fd });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json() as Promise<{ ok: true; filename: string; path: string }>;
+  },
   budget: () => req<Budget>("/api/budget"),
   meta: () => req<Meta>("/api/meta"),
   jobs: (params: Record<string, string | number | boolean | undefined>) => {

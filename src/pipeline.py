@@ -4,8 +4,7 @@ import re
 from pathlib import Path
 
 from . import config as cfg_mod
-from . import budget, db, docx_render, resume, tailor
-from .scorer import build_profile_block
+from . import budget, db, docx_render, profile as profile_mod, tailor
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -20,7 +19,6 @@ def output_dir_for(job_id: int, company: str) -> Path:
 
 
 def package_paths(job_id: int, company: str, name: str) -> dict:
-    """Compute the canonical output paths for a job's package."""
     out = output_dir_for(job_id, company)
     name_slug = slug(name)
     return {
@@ -34,11 +32,9 @@ def package_paths(job_id: int, company: str, name: str) -> dict:
 
 def generate_package(job_id: int, *, cfg: dict | None = None, no_cover: bool = False,
                      regen_base: bool = False) -> dict:
-    """Tailored resume + cover letter for one job. Returns paths and spend.
-
-    Raises BudgetExceeded if any stage hits its cap.
-    """
     cfg = cfg or cfg_mod.load()
+    profile = profile_mod.load()
+
     job_row = db.get_job(job_id)
     if not job_row:
         raise ValueError(f"No job {job_id}")
@@ -48,38 +44,32 @@ def generate_package(job_id: int, *, cfg: dict | None = None, no_cover: bool = F
     stage_caps = cfg["budget"]["stage_caps"]
     pricing = cfg["pricing"]
 
-    resume_text = resume.extract_text(cfg["profile"]["resume_pdf"])
-    profile = build_profile_block(cfg, resume_text)
+    candidate = profile_mod.candidate_text(profile)
+    if not candidate:
+        raise ValueError(
+            "No resume uploaded and no experience summary set. "
+            "Open Settings to add one."
+        )
+    profile_block = profile_mod.build_profile_block(profile, candidate)
 
     base = tailor.parse_base_resume(
-        resume_text, model=model, stage_caps=stage_caps, pricing=pricing,
+        candidate, model=model, stage_caps=stage_caps, pricing=pricing,
         force=regen_base,
     )
     tailored = tailor.tailor_resume(
-        base, job, profile, model=model, stage_caps=stage_caps, pricing=pricing,
+        base, job, profile_block, model=model, stage_caps=stage_caps, pricing=pricing,
     )
-
-    # Override Claude-generated header with authoritative profile from config
-    p = cfg["profile"]
-    tailored["header"] = {
-        "name": p["name"],
-        "location": p["location"],
-        "phone": p["phone"],
-        "email": p["email"],
-        "links": [
-            {"label": "LinkedIn", "url": p["linkedin"]},
-            {"label": "GitHub",   "url": p["github"]},
-            {"label": "Portfolio","url": p["portfolio"]},
-        ],
-    }
+    # Override header with authoritative contact info from profile
+    tailored["header"] = profile_mod.render_header_from_profile(profile)
 
     cover_text = None
     if not no_cover:
         cover_text = tailor.write_cover_letter(
-            base, job, profile, model=model, stage_caps=stage_caps, pricing=pricing,
+            base, job, profile_block, model=model, stage_caps=stage_caps, pricing=pricing,
         )
 
-    paths = package_paths(job_id, job["company"], cfg["profile"]["name"])
+    name = profile["contact"]["name"] or "candidate"
+    paths = package_paths(job_id, job["company"], name)
     docx_render.render_resume(tailored, paths["resume_docx"])
     paths["resume_json"].write_text(json.dumps(tailored, indent=2), encoding="utf-8")
     if cover_text:
@@ -89,8 +79,7 @@ def generate_package(job_id: int, *, cfg: dict | None = None, no_cover: bool = F
         paths["cover_txt"].write_text(cover_text, encoding="utf-8")
 
     db.upsert_application(
-        job_id=job_id,
-        status="To apply",
+        job_id=job_id, status="To apply",
         resume_path=str(paths["resume_docx"]),
         cover_letter_path=str(paths["cover_docx"]) if cover_text else None,
     )

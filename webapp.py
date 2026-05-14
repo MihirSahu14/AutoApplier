@@ -8,17 +8,16 @@ import threading
 import webbrowser
 from pathlib import Path
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src import budget, db, pipeline, prefilter
+from src import budget, db, pipeline, prefilter, profile as profile_mod
 from src import config as cfg_mod
 from src import export as export_mod
-from src import resume as resume_mod
-from src.scorer import score_job, build_profile_block
+from src.scorer import score_job
 from src.sources import hn
 
 ROOT = Path(__file__).resolve().parent
@@ -89,6 +88,83 @@ def _job_or_404(job_id: int):
 
 # ------------- API -------------
 
+@app.get("/api/setup-status")
+def api_setup_status():
+    p = profile_mod.load()
+    has_resume = bool(p.get("resume_pdf") and Path(p["resume_pdf"]).exists())
+    return {
+        "configured": profile_mod.is_configured(),
+        "has_name": bool(p["contact"]["name"]),
+        "has_email": bool(p["contact"]["email"]),
+        "has_resume": has_resume,
+        "has_experience_summary": bool(p.get("experience_summary")),
+        "has_anthropic_key": bool(profile_mod.anthropic_key()),
+        "db_initialized": db.DB_PATH.exists(),
+    }
+
+
+@app.get("/api/profile")
+def api_get_profile():
+    p = profile_mod.load()
+    # Mask API keys for transport — UI shows "set/unset"
+    masked = json.loads(json.dumps(p))
+    masked["api_keys"] = {
+        k: ("•" * 8 + (v[-4:] if v else "")) if v else ""
+        for k, v in p["api_keys"].items()
+    }
+    masked["resume_pdf_filename"] = (
+        Path(p["resume_pdf"]).name if p.get("resume_pdf") else ""
+    )
+    return masked
+
+
+@app.put("/api/profile")
+def api_update_profile(body: dict):
+    """Partial update. `api_keys.*` values that are blank or all-bullets are ignored."""
+    current = profile_mod.load()
+    # Deep merge dicts; replace scalars/lists.
+    def _merge(dst, src):
+        for k, v in src.items():
+            if isinstance(v, dict) and isinstance(dst.get(k), dict):
+                _merge(dst[k], v)
+            else:
+                dst[k] = v
+    incoming = body or {}
+    if "api_keys" in incoming:
+        cleaned = {}
+        for k, v in incoming["api_keys"].items():
+            if not v or set(v) <= {"•"}:
+                continue  # keep existing
+            cleaned[k] = v
+        incoming["api_keys"] = cleaned
+    _merge(current, incoming)
+    profile_mod.save(current)
+    db.init_db()  # ensure DB exists once profile is saved
+    return {"ok": True}
+
+
+@app.post("/api/profile/upload-resume")
+def api_upload_resume(file: UploadFile = File(...)):
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Only PDF resumes are supported.")
+    dest_dir = ROOT / "data" / "resume"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / file.filename
+    with open(dest, "wb") as f:
+        f.write(file.file.read())
+    # Bust the parsed-resume cache since the base resume changed
+    cache = ROOT / "data" / "cache" / "resume.txt"
+    base_json = ROOT / "data" / "cache" / "resume_base.json"
+    for f in (cache, base_json):
+        if f.exists():
+            f.unlink()
+
+    p = profile_mod.load()
+    p["resume_pdf"] = str(dest)
+    profile_mod.save(p)
+    return {"ok": True, "filename": dest.name, "path": str(dest)}
+
+
 @app.get("/api/budget")
 def api_budget():
     return _stage_table()
@@ -152,7 +228,7 @@ def api_jobs(min_score: int = 0, status: str = "", source: str = "",
 def api_job(job_id: int):
     j = dict(_job_or_404(job_id))
     paths = pipeline.package_paths(
-        job_id, j["company"], cfg_mod.load()["profile"]["name"]
+        job_id, j["company"], profile_mod.load()["contact"]["name"] or "candidate"
     )
     cover_text = paths["cover_txt"].read_text(encoding="utf-8") if paths["cover_txt"].exists() else None
     j["have_resume"] = paths["resume_docx"].exists()
@@ -189,7 +265,7 @@ def api_tailor(job_id: int, no_cover: bool = False):
 def api_download(job_id: int, kind: str):
     j = dict(_job_or_404(job_id))
     paths = pipeline.package_paths(
-        job_id, j["company"], cfg_mod.load()["profile"]["name"]
+        job_id, j["company"], profile_mod.load()["contact"]["name"] or "candidate"
     )
     f = {"resume": paths["resume_docx"], "cover": paths["cover_docx"]}.get(kind)
     if not f or not f.exists():
@@ -249,13 +325,12 @@ def api_run_score():
     stage_caps = cfg["budget"]["stage_caps"]
     pricing = cfg["pricing"]
     model = cfg["scoring"]["model"]
-    resume_text = resume_mod.extract_text(cfg["profile"]["resume_pdf"])
-    profile = build_profile_block(cfg, resume_text)
+    profile_block = profile_mod.build_profile_block()
 
     def _do():
         for j in db.unscored_jobs():
             try:
-                result = score_job(profile, dict(j), model=model,
+                result = score_job(profile_block, dict(j), model=model,
                                    stage_caps=stage_caps, pricing=pricing)
             except budget.BudgetExceeded:
                 break

@@ -7,9 +7,9 @@ from rich.table import Table
 from rich.progress import track
 
 from src import config as cfg_mod
-from src import db, resume, budget, prefilter, pipeline, export as export_mod
+from src import db, budget, prefilter, pipeline, profile as profile_mod, export as export_mod
 from src.sources import hn
-from src.scorer import score_job, build_profile_block
+from src.scorer import score_job
 
 app = typer.Typer(help="Auto Job Applier")
 console = Console()
@@ -80,8 +80,10 @@ def prefilter_cmd():
 def score(limit: int = 0):
     """Score every unscored job in the DB. limit=0 means all."""
     cfg = cfg_mod.load()
-    resume_text = resume.extract_text(cfg["profile"]["resume_pdf"])
-    profile = build_profile_block(cfg, resume_text)
+    if not profile_mod.is_configured():
+        console.print("[red]Profile not configured. Open the web UI and complete setup first.[/red]")
+        raise typer.Exit(1)
+    profile_block = profile_mod.build_profile_block()
     model = cfg["scoring"]["model"]
     stage_caps = cfg["budget"]["stage_caps"]
     pricing = cfg["pricing"]
@@ -104,7 +106,7 @@ def score(limit: int = 0):
     for j in track(jobs, description="Scoring"):
         try:
             result = score_job(
-                profile, dict(j), model=model, stage_caps=stage_caps, pricing=pricing,
+                profile_block, dict(j), model=model, stage_caps=stage_caps, pricing=pricing,
             )
         except budget.BudgetExceeded as e:
             console.print(f"[yellow]{e}[/yellow]")

@@ -9,12 +9,11 @@ Hard rule: the tailor NEVER fabricates. It only reorders, prunes, and lightly
 rephrases bullets that already exist in the base resume.
 """
 import json
-import os
 from pathlib import Path
 
 from anthropic import Anthropic
 
-from . import budget
+from . import budget, profile as profile_mod
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE_RESUME_JSON = ROOT / "data" / "cache" / "resume_base.json"
@@ -112,7 +111,7 @@ Output the letter only, no preamble."""
 
 
 def _client() -> Anthropic:
-    return Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    return Anthropic(api_key=profile_mod.anthropic_key())
 
 
 def _strip_fences(text: str) -> str:

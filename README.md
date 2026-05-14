@@ -1,24 +1,30 @@
 # Auto Job Applier
 
-End-to-end pipeline that finds, rates, and (eventually) applies to software roles
-matched to a personal resume + targeting profile.
+End-to-end pipeline that finds, rates, tailors, and tracks job applications
+based on the user's resume and targeting profile.  Works for anyone — first
+launch walks you through a setup wizard.
 
-Currently implemented (v0.1):
+Implemented:
+- 5-step **setup wizard** (web UI): contact info, resume upload OR
+  free-form experience description, target roles/locations/salary, visa
+  status + auto-disqualifiers, API key.  No code edits needed.
 - Job ingestion from Hacker News "Who is hiring?"
-- Claude-based fit scoring against resume + targets
-- Hard-filter disqualification (sponsorship, citizenship, salary floor)
-- SQLite ledger of all jobs and scores
-- Excel export with Applications tracker, dropdown statuses, summary tab
-- Daily USD budget cap on Anthropic API spend
+- Three-tier scoring funnel: free regex prefilter → Haiku scoring →
+  Sonnet tailoring + cover letters
+- 1-page tailored resume + personal cover letter per job (.docx + JSON +
+  plain text)
+- SQLite + Excel tracker with editable status / notes / paths
+- Daily USD budget caps split by stage (scoring / tailoring / outreach) so
+  bulk scoring can't drain the tailoring budget
+- React + TypeScript + Tailwind web UI with toasts, filters, score pills,
+  empty states, settings page
 
-## Setup
+## Setup (any user, no code edits required)
 
 ```bash
 # Backend
 pip install -r requirements.txt
-cp .env.example .env                  # fill in API keys
-cp config.example.yaml config.yaml    # fill in your name, resume path, targets
-python cli.py init
+cp config.example.yaml config.yaml   # only app-level knobs (models, budget)
 
 # Frontend (one-time)
 cd frontend && npm install && cd ..
@@ -29,16 +35,27 @@ cd frontend && npm install && cd ..
 Two terminals:
 
 ```bash
-# Terminal 1 — backend (http://localhost:8765)
+# Terminal 1 — backend  (http://localhost:8765)
 python webapp.py
 
 # Terminal 2 — frontend (http://localhost:5173)
 cd frontend && npm run dev
 ```
 
-Open http://localhost:5173. You get a job list with filters, score pills, and
-one-click buttons for: ingest HN, prefilter, score, export Excel, generate
-tailored package, open job page, download resume/cover, update status & notes.
+Open <http://localhost:5173>.  On first launch you'll be sent to **/setup** —
+a 5-step wizard that collects:
+
+1. Contact info (name, email, phone, LinkedIn, GitHub, portfolio, location).
+2. Background: **upload a resume PDF** *or* describe your experience in a
+   text box (works for people without a polished resume yet).
+3. Targets: roles, salary floor, company size, locations OK / preferred.
+4. Visa status + auto-disqualify phrases (e.g. "US citizen required").
+5. Anthropic API key (required) + optional Hunter / Apollo / SerpAPI keys.
+
+Everything is stored in `data/profile.json` (gitignored).  After setup you
+land on the job list with one-click buttons for ingest, prefilter, score,
+generate tailored package, download resume/cover, open job page, update
+status, and export to Excel.  Edit anything later from the ⚙ Settings page.
 
 ## Usage (CLI, still works)
 

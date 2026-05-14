@@ -1,9 +1,8 @@
 """Score jobs against the user's resume + targets using Claude (cheap model)."""
 import json
-import os
 from anthropic import Anthropic
 
-from . import budget
+from . import budget, profile as profile_mod
 
 SYSTEM = """You are a job-fit scorer for a candidate applying to software roles.
 
@@ -38,7 +37,7 @@ Only return the JSON object, no prose."""
 def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
               pricing: dict) -> dict:
     budget.check("scoring", stage_caps)
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = Anthropic(api_key=profile_mod.anthropic_key())
     job_block = (
         f"Company: {job['company']}\n"
         f"Title: {job['title']}\n"
@@ -71,16 +70,6 @@ def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
     return json.loads(text)
 
 
-def build_profile_block(cfg: dict, resume_text: str) -> str:
-    t = cfg["targets"]
-    v = cfg["visa"]
-    return (
-        f"Name: {cfg['profile']['name']}\n"
-        f"Visa: {v['status']}; needs H-1B sponsorship eventually.\n"
-        f"Target roles: {', '.join(t['roles'])}\n"
-        f"Company size preference: {t['company_size']['min']}-{t['company_size']['max']} employees (startups)\n"
-        f"Locations OK: {', '.join(t['locations_ok'])}; preferred: {', '.join(t['locations_preferred'])}\n"
-        f"Salary floor: ${t['salary_min_usd']:,}\n"
-        f"Disqualifiers (any of): {', '.join(cfg['visa']['disqualify_if'])}\n\n"
-        f"Resume text:\n{resume_text}"
-    )
+def build_profile_block(profile: dict = None, candidate_text: str = None) -> str:
+    """Thin wrapper kept for backward compatibility."""
+    return profile_mod.build_profile_block(profile, candidate_text)
