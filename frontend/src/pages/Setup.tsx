@@ -64,8 +64,8 @@ export function Setup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.contact.name]);
 
-  const next = () => setStep((s) => Math.min(5, (s + 1) as Step));
-  const back = () => setStep((s) => Math.max(1, (s - 1) as Step));
+  const next = () => setStep((s) => Math.min(5, s + 1) as Step);
+  const back = () => setStep((s) => Math.max(1, s - 1) as Step);
 
   const finish = async () => {
     try {
