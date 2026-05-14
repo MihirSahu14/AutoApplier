@@ -36,10 +36,10 @@ export function Settings() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Link to="/" className="text-sm text-slate-500 hover:text-slate-900">← back</Link>
+      <Link to="/" className="text-sm text-slate-500 hover:text-slate-200">← back</Link>
       <h1 className="text-2xl font-bold mt-3 mb-6">Settings</h1>
 
-      <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">Contact</h2>
         <div className="grid md:grid-cols-2 gap-3">
           {Object.keys(draft.contact).map((k) => (
@@ -52,14 +52,14 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">Background</h2>
         <Field label="Resume PDF">
-          <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center text-sm">
+          <div className="border-2 border-dashed border-slate-700 rounded p-4 text-center text-sm">
             <input type="file" accept="application/pdf"
                    onChange={(e) => e.target.files?.[0] && uploadResume(e.target.files[0])} />
             {draft.resume_pdf_filename && (
-              <div className="mt-2 text-emerald-700">✓ {draft.resume_pdf_filename}</div>
+              <div className="mt-2 text-emerald-300">✓ {draft.resume_pdf_filename}</div>
             )}
           </div>
         </Field>
@@ -70,7 +70,7 @@ export function Settings() {
         </Field>
       </section>
 
-      <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">Targets</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <Field label="Target roles (comma-separated)">
@@ -100,7 +100,7 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">Visa & disqualifiers</h2>
         <div className="grid gap-3">
           <Field label="Work authorization status">
@@ -122,7 +122,7 @@ export function Settings() {
 
       <CompaniesEditor />
 
-      <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+      <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">API keys</h2>
         <p className="text-xs text-slate-500 mb-3">Leave blank to keep the existing key.</p>
         <div className="grid md:grid-cols-2 gap-3">
@@ -138,7 +138,7 @@ export function Settings() {
 
       <div className="flex justify-end">
         <button onClick={save}
-                className="px-4 py-2 text-sm rounded bg-emerald-600 text-white">
+                className="px-4 py-2 text-sm rounded bg-emerald-600 hover:bg-emerald-500 text-white">
           Save changes
         </button>
       </div>
@@ -172,13 +172,13 @@ function CompaniesEditor() {
   };
 
   return (
-    <section className="bg-white border border-slate-200 rounded shadow-sm p-5 mb-4">
+    <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
       <h2 className="font-semibold mb-1">Companies to scrape</h2>
       <p className="text-xs text-slate-500 mb-3">
         One slug per line. The slug is what you see in the company's public job-board URL:
-        <code className="ml-1 bg-slate-100 px-1 rounded">jobs.lever.co/<b>slug</b></code>,
-        <code className="ml-1 bg-slate-100 px-1 rounded">boards.greenhouse.io/<b>slug</b></code>,
-        <code className="ml-1 bg-slate-100 px-1 rounded">jobs.ashbyhq.com/<b>slug</b></code>.
+        <code className="ml-1 bg-slate-800 px-1 rounded">jobs.lever.co/<b>slug</b></code>,
+        <code className="ml-1 bg-slate-800 px-1 rounded">boards.greenhouse.io/<b>slug</b></code>,
+        <code className="ml-1 bg-slate-800 px-1 rounded">jobs.ashbyhq.com/<b>slug</b></code>.
       </p>
       <div className="grid md:grid-cols-3 gap-3">
         <Field label="Greenhouse">
@@ -193,7 +193,7 @@ function CompaniesEditor() {
       </div>
       <div className="flex justify-end mt-3">
         <button onClick={save}
-                className="px-3 py-1.5 text-sm rounded bg-slate-900 text-white">
+                className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white">
           Save companies
         </button>
       </div>

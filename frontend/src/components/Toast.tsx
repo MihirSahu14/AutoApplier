@@ -19,9 +19,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`px-4 py-2 rounded shadow text-sm text-white animate-[fadeIn_0.15s] ${
-              t.kind === "ok" ? "bg-emerald-600" :
-              t.kind === "err" ? "bg-red-600" : "bg-slate-700"
+            className={`px-4 py-2 rounded-md shadow-2xl text-sm border ${
+              t.kind === "ok"
+                ? "bg-emerald-600/10 text-emerald-200 border-emerald-500/30"
+                : t.kind === "err"
+                ? "bg-red-600/10 text-red-200 border-red-500/30"
+                : "bg-slate-800/70 text-slate-200 border-slate-700"
             }`}
           >
             {t.msg}

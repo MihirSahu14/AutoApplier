@@ -113,7 +113,7 @@ export function Setup() {
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-2">Welcome — let's set you up</h1>
-      <p className="text-slate-500 mb-6 text-sm">
+      <p className="text-slate-400 mb-6 text-sm">
         This is a 2-minute setup. Everything lives locally in <code>data/profile.json</code> — nothing leaves your machine except Anthropic API calls.
       </p>
 
@@ -127,9 +127,9 @@ export function Setup() {
               key={label}
               onClick={() => setStep(n)}
               className={`px-3 py-1.5 rounded cursor-pointer border ${
-                active ? "bg-slate-900 text-white border-slate-900" :
-                done ? "bg-emerald-50 text-emerald-900 border-emerald-200" :
-                       "bg-white border-slate-200 text-slate-500"
+                active ? "bg-indigo-600 text-white border-indigo-600" :
+                done ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                       "bg-[#0f1018] border-slate-800 text-slate-500"
               }`}
             >
               {n}. {label}
@@ -138,7 +138,7 @@ export function Setup() {
         })}
       </ol>
 
-      <div className="bg-white border border-slate-200 rounded shadow-sm p-6">
+      <div className="bg-[#11121c] border border-slate-800 rounded-lg p-6">
         {step === 1 && (
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Full name *">
@@ -178,23 +178,23 @@ export function Setup() {
             <div className="flex gap-2 mb-4 text-sm">
               <button
                 onClick={() => setBg({ ...bg, mode: "upload" })}
-                className={`px-3 py-1.5 rounded border ${bg.mode === "upload" ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-300"}`}
+                className={`px-3 py-1.5 rounded border ${bg.mode === "upload" ? "bg-indigo-600 text-white border-indigo-600" : "bg-[#0f1018] border-slate-800"}`}
               >Upload resume (PDF)</button>
               <button
                 onClick={() => setBg({ ...bg, mode: "describe" })}
-                className={`px-3 py-1.5 rounded border ${bg.mode === "describe" ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-300"}`}
+                className={`px-3 py-1.5 rounded border ${bg.mode === "describe" ? "bg-indigo-600 text-white border-indigo-600" : "bg-[#0f1018] border-slate-800"}`}
               >Describe my experience</button>
             </div>
 
             {bg.mode === "upload" ? (
               <Field label="Resume PDF" hint="A 1-page resume works best. Re-upload to replace.">
-                <div className="border-2 border-dashed border-slate-300 rounded p-6 text-center">
+                <div className="border-2 border-dashed border-slate-700 rounded p-6 text-center bg-[#0f1018]">
                   <input
                     type="file" accept="application/pdf"
                     onChange={(e) => e.target.files?.[0] && uploadResume(e.target.files[0])}
                   />
                   {bg.filename && (
-                    <div className="mt-2 text-sm text-emerald-700">✓ {bg.filename}</div>
+                    <div className="mt-2 text-sm text-emerald-300">✓ {bg.filename}</div>
                   )}
                 </div>
               </Field>
@@ -274,7 +274,7 @@ export function Setup() {
               You need an <strong>Anthropic API key</strong> for scoring and tailoring.
               Get one at{" "}
               <a href="https://console.anthropic.com/settings/keys" target="_blank"
-                 className="text-blue-600 underline">console.anthropic.com</a>.
+                 className="text-indigo-400 underline">console.anthropic.com</a>.
               Others are optional (used later for contact lookup).
             </p>
             <Field label="Anthropic API key *">
@@ -298,17 +298,17 @@ export function Setup() {
 
         <div className="flex justify-between mt-6">
           <button onClick={back} disabled={step === 1}
-                  className="px-4 py-2 text-sm rounded border border-slate-300 disabled:opacity-30">
+                  className="px-4 py-2 text-sm rounded border border-slate-700 text-slate-300 disabled:opacity-30">
             Back
           </button>
           {step < 5 ? (
             <button onClick={next}
-                    className="px-4 py-2 text-sm rounded bg-slate-900 text-white">
+                    className="px-4 py-2 text-sm rounded bg-indigo-600 text-white">
               Next →
             </button>
           ) : (
             <button onClick={finish}
-                    className="px-4 py-2 text-sm rounded bg-emerald-600 text-white">
+                    className="px-4 py-2 text-sm rounded bg-emerald-600 hover:bg-emerald-500 text-white">
               Finish setup
             </button>
           )}
