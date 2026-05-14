@@ -134,13 +134,11 @@ remote deploy disables it.
 
 1. Push to GitHub (this repo is already there).
 2. Render dashboard → **New → Blueprint**, point at the repo. It picks up
-   `render.yaml` and creates a Web Service + 1 GB persistent disk mounted at
-   `/var/data`.
-3. Render → service → **Environment** → fill in:
-   - `ANTHROPIC_API_KEY` (required)
-   - `HUNTER_API_KEY`, `APOLLO_API_KEY`, `SERPAPI_KEY` (optional)
-   - `FRONTEND_ORIGIN` — leave blank for now; set after step 2 below.
-4. Wait for first deploy. Copy the service URL (e.g. `https://aja-api.onrender.com`).
+   `render.yaml` and creates a **free** Web Service. No paid disk, no API
+   keys baked in — `AJA_DATA_DIR` points at `/tmp/aja-data` (ephemeral).
+3. Render → service → **Environment** → set `FRONTEND_ORIGIN` after step 2 below.
+   That's the only env var you need to set.
+4. Wait for first deploy. Copy the service URL (e.g. `https://auto-job-applier-api.onrender.com`).
 
 ### 2. Frontend → Vercel
 
