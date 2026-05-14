@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api, Profile } from "../api";
+import { api, type Profile } from "../api";
 import { Field, inputCls } from "../components/Field";
 import { useToast } from "../components/Toast";
 

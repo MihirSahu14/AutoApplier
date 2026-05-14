@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, Contact } from "../api";
+import { api, type Contact } from "../api";
 import { useToast } from "./Toast";
 
 function gmailComposeUrl(to: string, subject: string, body: string) {
