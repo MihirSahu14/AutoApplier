@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, downloadUrl } from "../api";
 import { ScorePill } from "../components/ScorePill";
 import { useToast } from "../components/Toast";
+import { Outreach } from "../components/Outreach";
 
 export function JobDetail() {
   const { id } = useParams<{ id: string }>();
@@ -168,6 +169,8 @@ export function JobDetail() {
           )}
         </div>
       </div>
+
+      <Outreach jobId={jobId} />
 
       <div className="bg-white border border-slate-200 rounded shadow-sm p-5 mt-4">
         <h2 className="font-semibold mb-2">Job description</h2>

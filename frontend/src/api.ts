@@ -32,6 +32,21 @@ export type Budget = {
   running: string[];
 };
 
+export type Contact = {
+  id: number;
+  job_id: number;
+  company: string;
+  name: string | null;
+  title: string | null;
+  email: string;
+  linkedin: string | null;
+  confidence: number | null;
+  source: string;
+  subject: string | null;
+  body: string | null;
+  sent_at: string | null;
+};
+
 export type Meta = {
   sources: string[];
   statuses: string[];
@@ -126,6 +141,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ url: url || null }),
     }),
+  listContacts: (id: number) =>
+    req<{ contacts: Contact[] }>(`/api/jobs/${id}/contacts`),
+  findContacts: (id: number) =>
+    req<{ found: number; total_returned?: number; domain: string | null }>(
+      `/api/jobs/${id}/find-contacts`, { method: "POST" }
+    ),
+  draftEmail: (contactId: number) =>
+    req<{ subject: string; body: string }>(
+      `/api/contacts/${contactId}/draft-email`, { method: "POST" }
+    ),
+  markSent: (contactId: number) =>
+    req<{ ok: true }>(`/api/contacts/${contactId}/mark-sent`, { method: "POST" }),
   runIngest: () => req<{ started: boolean }>("/api/run/ingest", { method: "POST" }),
   runPrefilter: () => req<{ started: boolean }>("/api/run/prefilter", { method: "POST" }),
   runScore: () => req<{ started: boolean }>("/api/run/score", { method: "POST" }),

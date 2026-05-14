@@ -42,8 +42,31 @@ CREATE TABLE IF NOT EXISTS applications (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+    company TEXT,
+    name TEXT,
+    title TEXT,
+    email TEXT,
+    linkedin TEXT,
+    confidence INTEGER,
+    source TEXT,
+    found_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(job_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS email_drafts (
+    contact_id INTEGER PRIMARY KEY REFERENCES contacts(id) ON DELETE CASCADE,
+    subject TEXT,
+    body TEXT,
+    sent_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores(score DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_source ON jobs(source);
+CREATE INDEX IF NOT EXISTS idx_contacts_job ON contacts(job_id);
 """
 
 
@@ -131,6 +154,59 @@ def upsert_application(job_id: int, **fields):
             (job_id, *fields.values()),
         )
         return c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+
+def add_contacts(job_id: int, company: str, rows: list[dict]) -> int:
+    """Insert contacts for a job. Returns count inserted (duplicates ignored)."""
+    n = 0
+    with connect() as c:
+        for r in rows:
+            try:
+                c.execute(
+                    "INSERT OR IGNORE INTO contacts "
+                    "(job_id, company, name, title, email, linkedin, confidence, source) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (job_id, company, r.get("name"), r.get("title"),
+                     r.get("email"), r.get("linkedin"), r.get("confidence"), r.get("source")),
+                )
+                if c.rowcount:
+                    n += 1
+            except Exception:
+                continue
+    return n
+
+
+def list_contacts(job_id: int):
+    with connect() as c:
+        return c.execute(
+            "SELECT c.*, ed.subject, ed.body, ed.sent_at "
+            "FROM contacts c LEFT JOIN email_drafts ed ON ed.contact_id = c.id "
+            "WHERE c.job_id = ? ORDER BY c.confidence DESC NULLS LAST, c.id",
+            (job_id,),
+        ).fetchall()
+
+
+def get_contact(contact_id: int):
+    with connect() as c:
+        return c.execute("SELECT * FROM contacts WHERE id = ?", (contact_id,)).fetchone()
+
+
+def save_email_draft(contact_id: int, subject: str, body: str):
+    with connect() as c:
+        c.execute(
+            "INSERT INTO email_drafts (contact_id, subject, body) VALUES (?,?,?) "
+            "ON CONFLICT(contact_id) DO UPDATE SET subject=excluded.subject, "
+            "body=excluded.body, created_at=CURRENT_TIMESTAMP",
+            (contact_id, subject, body),
+        )
+
+
+def mark_email_sent(contact_id: int):
+    with connect() as c:
+        c.execute(
+            "UPDATE email_drafts SET sent_at = CURRENT_TIMESTAMP WHERE contact_id = ?",
+            (contact_id,),
+        )
 
 
 def ranked_jobs(threshold: int = 0, include_disqualified: bool = False, limit: int = 50):

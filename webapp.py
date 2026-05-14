@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src import autofill, budget, db, pipeline, prefilter, profile as profile_mod
+from src import autofill, budget, cold_email, contacts as contacts_mod, db, pipeline, prefilter, profile as profile_mod
 from src import config as cfg_mod
 from src import export as export_mod
 from src.scorer import score_job
@@ -283,6 +283,62 @@ def api_open(job_id: int):
 
 class AutofillBody(BaseModel):
     url: str | None = None  # override URL (job.url often isn't the apply form)
+
+
+@app.get("/api/jobs/{job_id}/contacts")
+def api_list_contacts(job_id: int):
+    _job_or_404(job_id)
+    rows = db.list_contacts(job_id)
+    return {"contacts": [dict(r) for r in rows]}
+
+
+@app.post("/api/jobs/{job_id}/find-contacts")
+def api_find_contacts(job_id: int):
+    j = dict(_job_or_404(job_id))
+    if not profile_mod.api_key("hunter"):
+        raise HTTPException(412, "Hunter.io API key not set. Add it in Settings.")
+    rows = contacts_mod.find_contacts_for_job(j)
+    if not rows:
+        return {"found": 0, "domain": contacts_mod.guess_domain(j["company"], j["description"] or "")}
+    n = db.add_contacts(job_id, j["company"], rows)
+    return {"found": n, "total_returned": len(rows),
+            "domain": contacts_mod.guess_domain(j["company"], j["description"] or "")}
+
+
+@app.post("/api/contacts/{contact_id}/draft-email")
+def api_draft_email(contact_id: int):
+    c = db.get_contact(contact_id)
+    if not c:
+        raise HTTPException(404, "Contact not found")
+    contact = dict(c)
+    job = db.get_job(contact["job_id"])
+    if not job:
+        raise HTTPException(404, "Job for contact not found")
+    profile = profile_mod.load()
+    if not profile_mod.is_configured():
+        raise HTTPException(412, "Complete profile setup first.")
+    cfg = cfg_mod.load()
+    candidate = profile_mod.candidate_text(profile)
+    profile_block = profile_mod.build_profile_block(profile, candidate)
+    try:
+        draft = cold_email.draft_email(
+            profile_block, candidate, dict(job), contact,
+            model=cfg["generation"]["model"],
+            stage_caps=cfg["budget"]["stage_caps"],
+            pricing=cfg["pricing"],
+        )
+    except budget.BudgetExceeded as e:
+        raise HTTPException(429, str(e))
+    db.save_email_draft(contact_id, draft["subject"], draft["body"])
+    return draft
+
+
+@app.post("/api/contacts/{contact_id}/mark-sent")
+def api_mark_sent(contact_id: int):
+    if not db.get_contact(contact_id):
+        raise HTTPException(404, "Contact not found")
+    db.mark_email_sent(contact_id)
+    return {"ok": True}
 
 
 @app.post("/api/jobs/{job_id}/autofill")
