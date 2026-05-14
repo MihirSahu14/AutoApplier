@@ -107,6 +107,13 @@ so high-volume scoring can never starve the tailoring budget.
 
 ## Deploy (Vercel + Render)
 
+### Privacy model
+
+- Nothing personal is in this git repo (resume PDF, API keys, contact info — all gitignored under `data/` + `.env`).
+- On the cloud deploy, the backend's `AJA_DATA_DIR=/tmp/aja-data` is **ephemeral** — wiped on every container restart.
+- Your profile + API keys are kept in your browser's `localStorage`. On a cold start the frontend auto-pushes them back to the server. The deploy itself stores **zero** durable user data.
+- The server's API keys are whatever **you** type into Setup — there are none baked into `render.yaml` or env vars.
+
 ### What works in the cloud
 
 | Feature | Works? |
@@ -117,7 +124,8 @@ so high-volume scoring can never starve the tailoring budget.
 | Gmail / mailto buttons | ✅ |
 | Excel export download | ✅ |
 | Playwright autofill | ❌ remote container can't open a browser on your laptop |
-| Persistent profile / DB / output files | ⚠️ requires Render's $1/mo persistent disk |
+| Profile + jobs survive page refresh | ✅ profile via browser localStorage; jobs are re-ingested on demand |
+| Profile + jobs survive backend cold-start | ⚠️ profile auto-restored from your browser; ingested jobs/scores reset and need re-running |
 
 The autofill button still works when you run the backend locally — only the
 remote deploy disables it.

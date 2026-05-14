@@ -1,21 +1,44 @@
+import { useEffect, useState } from "react";
 import { Outlet, Link, NavLink, useLocation, Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "./api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, restoreProfileIfNeeded } from "./api";
 
 export function App() {
   const loc = useLocation();
+  const qc = useQueryClient();
+  const [restoring, setRestoring] = useState(true);
+
+  // On boot: if the (free-tier, ephemeral) backend has lost the profile but
+  // we have a copy in localStorage, push it back transparently.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const restored = await restoreProfileIfNeeded();
+        if (!cancelled && restored) {
+          qc.invalidateQueries({ queryKey: ["setup-status"] });
+          qc.invalidateQueries({ queryKey: ["profile"] });
+        }
+      } catch { /* offline / cold start — UI will surface the error */ }
+      finally { if (!cancelled) setRestoring(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [qc]);
+
   const { data: budget } = useQuery({
     queryKey: ["budget"],
     queryFn: api.budget,
+    enabled: !restoring,
     refetchInterval: (q) =>
       (q.state.data?.running?.length ?? 0) > 0 ? 1500 : 8000,
   });
   const { data: setup, isLoading: setupLoading } = useQuery({
     queryKey: ["setup-status"],
     queryFn: api.setupStatus,
+    enabled: !restoring,
   });
 
-  if (setupLoading) {
+  if (restoring || setupLoading) {
     return <div className="p-8 text-slate-500 text-sm">Loading…</div>;
   }
   if (setup && !setup.configured && loc.pathname !== "/setup") {

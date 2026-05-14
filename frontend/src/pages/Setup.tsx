@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { api, saveProfileLS } from "../api";
 import { Field, inputCls } from "../components/Field";
 import { useToast } from "../components/Toast";
 
@@ -69,7 +69,7 @@ export function Setup() {
 
   const finish = async () => {
     try {
-      await api.updateProfile({
+      const patch: any = {
         contact,
         experience_summary: bg.mode === "describe" ? bg.summary : "",
         targets: {
@@ -86,7 +86,10 @@ export function Setup() {
           disqualify_if: visa.disqualifiers.split("\n").map((s) => s.trim()).filter(Boolean),
         },
         api_keys: keys,
-      });
+      };
+      // Browser holds the authoritative copy — cloud backend is ephemeral.
+      saveProfileLS(patch);
+      await api.updateProfile(patch);
       qc.invalidateQueries({ queryKey: ["setup-status"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
       toast("Setup complete!", "ok");

@@ -57,6 +57,38 @@ export type Meta = {
 // In production, set VITE_API_BASE to the Render URL (e.g. https://aja-api.onrender.com).
 export const API_BASE: string = (import.meta as any).env?.VITE_API_BASE || "";
 
+// --- localStorage profile cache --------------------------------------------
+// On the deployed (free-tier) backend, AJA_DATA_DIR is /tmp — wiped on every
+// restart.  We keep an authoritative copy of the user's profile (including
+// API keys) in *their browser's* localStorage and push it back to the server
+// any time the server says it has no profile.  Nothing ever leaves the user.
+const LS_KEY = "aja:profile";
+
+export type StoredProfile = {
+  contact: any;
+  experience_summary: string;
+  visa: any;
+  targets: any;
+  api_keys: { anthropic: string; hunter: string; apollo: string; serpapi: string };
+};
+
+export function loadProfileLS(): StoredProfile | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function saveProfileLS(p: Partial<StoredProfile>) {
+  const cur = loadProfileLS() || ({} as StoredProfile);
+  const merged = { ...cur, ...p };
+  localStorage.setItem(LS_KEY, JSON.stringify(merged));
+}
+
+export function clearProfileLS() {
+  localStorage.removeItem(LS_KEY);
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json" },
@@ -102,6 +134,21 @@ export type Profile = {
   };
   api_keys: { anthropic: string; hunter: string; apollo: string; serpapi: string };
 };
+
+/** If backend is unconfigured but localStorage has a profile, push it back.
+ *  Returns true if a restore happened (caller should invalidate setup-status). */
+export async function restoreProfileIfNeeded(): Promise<boolean> {
+  const status = await fetch(`${API_BASE}/api/setup-status`).then(r => r.json());
+  if (status.configured) return false;
+  const ls = loadProfileLS();
+  if (!ls) return false;
+  const res = await fetch(`${API_BASE}/api/profile`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(ls),
+  });
+  return res.ok;
+}
 
 export const api = {
   setupStatus: () => req<SetupStatus>("/api/setup-status"),

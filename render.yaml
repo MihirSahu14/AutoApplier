@@ -1,35 +1,30 @@
-# Render blueprint.  Apply once: https://dashboard.render.com/blueprints
-# - Free instance is fine (spins down after 15min idle = cold start on next hit).
-# - Disk costs ~$1/mo for 1 GB; without it your profile/DB resets every restart.
+# Render blueprint — FREE TIER, ZERO SECRETS.
+#
+# No persistent disk → AJA_DATA_DIR = /tmp/aja-data (ephemeral; wiped on every
+# restart or redeploy).  That's fine: the user's profile + API keys live in
+# their browser's localStorage and are auto-pushed back to the server on cold
+# starts.  Nothing personal ever lives on the server long-term.
+#
+# No API keys baked in either — every visitor enters their own Anthropic key
+# in the /setup wizard.  Keys never touch git, never appear in env vars.
+#
+# Apply once: https://dashboard.render.com/blueprints
 
 services:
   - type: web
     name: auto-job-applier-api
     runtime: python
-    plan: free
+    plan: free                     # spins down after 15 min idle, cold-starts on next hit
     region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn webapp:app --host 0.0.0.0 --port $PORT
-    disk:
-      name: aja-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: AJA_DATA_DIR
-        value: /var/data
+        value: /tmp/aja-data       # ephemeral — no paid disk
       - key: AJA_DISABLE_AUTOFILL
-        value: "1"
+        value: "1"                 # remote server can't open browsers on your laptop
       - key: HOST
         value: 0.0.0.0
-      # FRONTEND_ORIGIN: set this to your Vercel URL after first deploy.
+      # Set this to your Vercel URL after first frontend deploy.
       - key: FRONTEND_ORIGIN
-        sync: false
-      # First-run / fallback API keys (profile-stored keys take precedence).
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: HUNTER_API_KEY
-        sync: false
-      - key: APOLLO_API_KEY
-        sync: false
-      - key: SERPAPI_KEY
         sync: false

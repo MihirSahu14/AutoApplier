@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api, type Profile } from "../api";
+import { api, saveProfileLS, type Profile } from "../api";
 import { Field, inputCls } from "../components/Field";
 import { useToast } from "../components/Toast";
 
@@ -16,10 +16,9 @@ export function Settings() {
 
   const save = async () => {
     try {
-      await api.updateProfile({
-        ...draft,
-        api_keys: keys,
-      });
+      const patch: any = { ...draft, api_keys: keys };
+      saveProfileLS(patch);  // localStorage is the source of truth in cloud
+      await api.updateProfile(patch);
       qc.invalidateQueries({ queryKey: ["profile"] });
       qc.invalidateQueries({ queryKey: ["setup-status"] });
       toast("Saved", "ok");
