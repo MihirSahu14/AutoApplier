@@ -105,6 +105,63 @@ so high-volume scoring can never starve the tailoring budget.
 - `scoring.threshold` — min score to surface in `rank`
 - `budget.daily_usd` — hard cap on Anthropic spend per day
 
+## Deploy (Vercel + Render)
+
+### What works in the cloud
+
+| Feature | Works? |
+|---|---|
+| Ingest / prefilter / score / rank | ✅ |
+| Tailored resume + cover letter | ✅ |
+| Founder lookup + cold email drafts | ✅ |
+| Gmail / mailto buttons | ✅ |
+| Excel export download | ✅ |
+| Playwright autofill | ❌ remote container can't open a browser on your laptop |
+| Persistent profile / DB / output files | ⚠️ requires Render's $1/mo persistent disk |
+
+The autofill button still works when you run the backend locally — only the
+remote deploy disables it.
+
+### 1. Backend → Render
+
+1. Push to GitHub (this repo is already there).
+2. Render dashboard → **New → Blueprint**, point at the repo. It picks up
+   `render.yaml` and creates a Web Service + 1 GB persistent disk mounted at
+   `/var/data`.
+3. Render → service → **Environment** → fill in:
+   - `ANTHROPIC_API_KEY` (required)
+   - `HUNTER_API_KEY`, `APOLLO_API_KEY`, `SERPAPI_KEY` (optional)
+   - `FRONTEND_ORIGIN` — leave blank for now; set after step 2 below.
+4. Wait for first deploy. Copy the service URL (e.g. `https://aja-api.onrender.com`).
+
+### 2. Frontend → Vercel
+
+1. Vercel dashboard → **New Project** → import the same GitHub repo.
+2. Settings → **Root Directory: `frontend`** (this is critical — Vercel will
+   auto-detect Vite once you point it at the subfolder).
+3. **Environment Variables** → add
+   `VITE_API_BASE = https://<your-render-url>` (no trailing slash).
+4. Deploy. Note the resulting URL (e.g. `https://aja.vercel.app`).
+5. Back in Render → update `FRONTEND_ORIGIN` to that Vercel URL, save (it
+   redeploys automatically).
+
+### 3. First-run setup
+
+Visit the Vercel URL. You'll be redirected to `/setup` because the persistent
+disk starts empty. Walk the 5-step wizard (resume, targets, API key). Everything
+persists from that point on.
+
+### Notes & gotchas
+
+- **Cold starts.** Render free spins down after 15 min idle. First request after
+  that takes ~30 s. Upgrade plan or ping with a cron job if you hate it.
+- **Background jobs survive the request** but get killed if the container
+  restarts. Don't kick off a 10-min score on free tier and immediately wander
+  off for an hour — finish what you start.
+- **Long-running scores** count toward Render's 750 hrs/mo free.
+- **No multi-user auth.** Anyone who hits your Vercel URL sees your profile and
+  jobs. Either keep the URL private or add auth (Clerk/Auth0 in front).
+
 ## Roadmap
 
 - More job sources: Greenhouse, Lever, Ashby, Wellfound, YC WAAS, Jobright

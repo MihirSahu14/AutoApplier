@@ -53,8 +53,12 @@ export type Meta = {
   counts: { total: number; scored: number; qualified: number; applied: number };
 };
 
+// In dev, Vite proxies /api/* to localhost:8765 (vite.config.ts).
+// In production, set VITE_API_BASE to the Render URL (e.g. https://aja-api.onrender.com).
+export const API_BASE: string = (import.meta as any).env?.VITE_API_BASE || "";
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { "content-type": "application/json" },
     ...init,
   });
@@ -110,7 +114,7 @@ export const api = {
   uploadResume: async (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/profile/upload-resume", { method: "POST", body: fd });
+    const res = await fetch(`${API_BASE}/api/profile/upload-resume`, { method: "POST", body: fd });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
     return res.json() as Promise<{ ok: true; filename: string; path: string }>;
   },
@@ -134,8 +138,7 @@ export const api = {
       `/api/jobs/${id}/tailor?no_cover=${no_cover}`,
       { method: "POST" }
     ),
-  openJob: (id: number) =>
-    req<{ ok: true }>(`/api/jobs/${id}/open`, { method: "POST" }),
+  // openJob is client-side now (window.open(j.url)). Kept stub for API compat.
   autofill: (id: number, url?: string) =>
     req<{ ok: true }>(`/api/jobs/${id}/autofill`, {
       method: "POST",
@@ -166,4 +169,4 @@ export const api = {
 };
 
 export const downloadUrl = (id: number, kind: "resume" | "cover") =>
-  `/api/jobs/${id}/download/${kind}`;
+  `${API_BASE}/api/jobs/${id}/download/${kind}`;

@@ -7,7 +7,7 @@ from openpyxl.utils import get_column_letter
 
 from . import db
 
-OUT = Path(__file__).resolve().parent.parent / "data" / "JobTracker.xlsx"
+from .paths import TRACKER_XLSX as OUT
 
 STATUS_OPTIONS = [
     "Not started", "To apply", "Applied", "Phone screen", "Technical",

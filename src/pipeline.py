@@ -6,7 +6,7 @@ from pathlib import Path
 from . import config as cfg_mod
 from . import budget, db, docx_render, profile as profile_mod, tailor
 
-ROOT = Path(__file__).resolve().parent.parent
+from .paths import OUTPUT_DIR
 
 
 def slug(s: str, n: int = 40) -> str:
@@ -15,7 +15,7 @@ def slug(s: str, n: int = 40) -> str:
 
 
 def output_dir_for(job_id: int, company: str) -> Path:
-    return ROOT / "data" / "output" / f"{job_id}_{slug(company)}"
+    return OUTPUT_DIR / f"{job_id}_{slug(company)}"
 
 
 def package_paths(job_id: int, company: str, name: str) -> dict:

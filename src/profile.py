@@ -10,8 +10,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path(__file__).resolve().parent.parent
-PROFILE_PATH = ROOT / "data" / "profile.json"
+from .paths import PROFILE_PATH
 
 DEFAULT_DISQUALIFIERS = [
     "us citizen required",

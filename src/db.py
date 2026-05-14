@@ -1,8 +1,8 @@
 import sqlite3
-from pathlib import Path
 from contextlib import contextmanager
+from .paths import DB_PATH
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "jobs.db"
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (

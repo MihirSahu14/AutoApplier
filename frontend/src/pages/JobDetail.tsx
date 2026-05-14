@@ -43,7 +43,6 @@ export function JobDetail() {
     },
   });
 
-  const open = useMutation({ mutationFn: () => api.openJob(jobId) });
   const autofill = useMutation({
     mutationFn: () => api.autofill(jobId, applyUrl.trim() || undefined),
     onSuccess: () => toast("Browser launching… review and submit when ready.", "ok"),
@@ -79,9 +78,13 @@ export function JobDetail() {
         )}
 
         <div className="flex flex-wrap gap-2 mt-5">
-          <Btn onClick={() => open.mutate()} cls="bg-slate-700 hover:bg-slate-600">
+          <a
+            href={j.url || "#"}
+            target="_blank" rel="noreferrer"
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm font-medium"
+          >
             Open job page ↗
-          </Btn>
+          </a>
           <Btn
             onClick={() => tailor.mutate()}
             disabled={tailor.isPending}

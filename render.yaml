@@ -1,0 +1,35 @@
+# Render blueprint.  Apply once: https://dashboard.render.com/blueprints
+# - Free instance is fine (spins down after 15min idle = cold start on next hit).
+# - Disk costs ~$1/mo for 1 GB; without it your profile/DB resets every restart.
+
+services:
+  - type: web
+    name: auto-job-applier-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn webapp:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: aja-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: AJA_DATA_DIR
+        value: /var/data
+      - key: AJA_DISABLE_AUTOFILL
+        value: "1"
+      - key: HOST
+        value: 0.0.0.0
+      # FRONTEND_ORIGIN: set this to your Vercel URL after first deploy.
+      - key: FRONTEND_ORIGIN
+        sync: false
+      # First-run / fallback API keys (profile-stored keys take precedence).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+      - key: SERPAPI_KEY
+        sync: false

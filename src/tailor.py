@@ -15,8 +15,8 @@ from anthropic import Anthropic
 
 from . import budget, profile as profile_mod
 
-ROOT = Path(__file__).resolve().parent.parent
-BASE_RESUME_JSON = ROOT / "data" / "cache" / "resume_base.json"
+from .paths import CACHE_DIR
+BASE_RESUME_JSON = CACHE_DIR / "resume_base.json"
 
 
 PARSE_SYSTEM = """You extract a structured resume from raw text.

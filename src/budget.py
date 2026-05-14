@@ -13,7 +13,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-LEDGER = Path(__file__).resolve().parent.parent / "data" / "spend_ledger.json"
+from .paths import LEDGER_PATH as LEDGER
 
 
 class BudgetExceeded(Exception):

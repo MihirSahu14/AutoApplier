@@ -1,7 +1,8 @@
 from pathlib import Path
 from pypdf import PdfReader
 
-CACHE = Path(__file__).resolve().parent.parent / "data" / "cache" / "resume.txt"
+from .paths import CACHE_DIR
+CACHE = CACHE_DIR / "resume.txt"
 
 
 def extract_text(pdf_path: str | Path) -> str:

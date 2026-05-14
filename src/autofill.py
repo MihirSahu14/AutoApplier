@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path(__file__).resolve().parent.parent
+from .paths import BROWSER_PROFILE_DIR
 
 # ---- field-matching heuristics ------------------------------------------------
 # Each kind maps to regex patterns we look for in the input's label, name,
@@ -202,7 +202,7 @@ def launch_autofill_thread(url: str, profile: dict, resume_path: Path,
             print("[autofill] playwright not installed. Run: pip install playwright && playwright install chromium")
             return
 
-        user_dir = ROOT / "data" / "browser_profile"
+        user_dir = BROWSER_PROFILE_DIR
         user_dir.mkdir(parents=True, exist_ok=True)
         values = _values_from_profile(profile)
         needs_sponsorship = bool(profile.get("visa", {}).get("needs_sponsorship"))

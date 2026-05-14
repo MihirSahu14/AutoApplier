@@ -1,11 +1,24 @@
 """JSON API backend for the Auto Job Applier React UI.
 
-Run: `python webapp.py`  -> http://localhost:8765 (API)
-The React dev server (vite) runs on :5173 and proxies /api/* here.
+Run locally:  `python webapp.py`  -> http://localhost:8765
+Deploy:       `uvicorn webapp:app --host 0.0.0.0 --port $PORT`
+
+Env vars (cloud):
+  AJA_DATA_DIR        Where profile.json, jobs.db, resume cache, etc. live.
+                      Default: <repo>/data.  On Render set this to your disk
+                      mount (e.g. /var/data) so data survives restarts.
+  FRONTEND_ORIGIN     Comma-separated origins allowed by CORS.
+                      Default: http://localhost:5173
+  AJA_DISABLE_AUTOFILL If "1", the autofill endpoint returns 503.  Set this
+                      on the cloud host where Playwright can't open a window
+                      on the user's machine.
+  ANTHROPIC_API_KEY, HUNTER_API_KEY, APOLLO_API_KEY, SERPAPI_KEY
+                      Provider keys.  Profile-stored keys take precedence
+                      when present; these are the fallback / first-run defaults.
 """
 import json
+import os
 import threading
-import webbrowser
 from pathlib import Path
 
 from fastapi import FastAPI, BackgroundTasks, File, Form, HTTPException, UploadFile
@@ -20,7 +33,10 @@ from src import export as export_mod
 from src.scorer import score_job
 from src.sources import hn, greenhouse, lever, ashby
 
+from src.paths import DATA_DIR, COMPANIES_YAML
+
 ROOT = Path(__file__).resolve().parent
+AUTOFILL_DISABLED = os.environ.get("AJA_DISABLE_AUTOFILL", "0") == "1"
 
 # Track which background jobs are running so the UI can show a spinner.
 _running: set[str] = set()
@@ -32,12 +48,24 @@ STATUSES = [
 ]
 
 app = FastAPI(title="Auto Job Applier API")
+
+_origins = [
+    o.strip() for o in
+    os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173").split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # vite dev server
+    allow_origins=_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/health")
+def api_health():
+    return {"ok": True, "autofill_disabled": AUTOFILL_DISABLED}
 
 
 # ------------- helpers -------------
@@ -273,12 +301,8 @@ def api_download(job_id: int, kind: str):
     return FileResponse(f, filename=f.name)
 
 
-@app.post("/api/jobs/{job_id}/open")
-def api_open(job_id: int):
-    j = dict(_job_or_404(job_id))
-    if j["url"]:
-        webbrowser.open(j["url"])
-    return {"ok": True}
+# `open job page` is purely client-side now — the React app uses window.open.
+# (We can't open a browser on the user's machine from a remote server.)
 
 
 class AutofillBody(BaseModel):
@@ -343,6 +367,12 @@ def api_mark_sent(contact_id: int):
 
 @app.post("/api/jobs/{job_id}/autofill")
 def api_autofill(job_id: int, body: AutofillBody):
+    if AUTOFILL_DISABLED:
+        raise HTTPException(
+            503,
+            "Autofill only works when running the backend on your own machine — "
+            "a remote server can't open a browser window on your computer.",
+        )
     j = dict(_job_or_404(job_id))
     target_url = (body.url or "").strip() or j["url"]
     if not target_url:
@@ -373,10 +403,9 @@ def api_autofill(job_id: int, body: AutofillBody):
 
 def _load_companies() -> dict:
     import yaml
-    path = ROOT / "data" / "companies.yaml"
-    if not path.exists():
+    if not COMPANIES_YAML.exists():
         return {"greenhouse": [], "lever": [], "ashby": []}
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return yaml.safe_load(COMPANIES_YAML.read_text(encoding="utf-8")) or {}
 
 
 def _ingest_one(source: str, rows: list[dict]):
@@ -420,12 +449,10 @@ def api_get_companies():
 @app.put("/api/companies")
 def api_set_companies(body: dict):
     import yaml
-    path = ROOT / "data" / "companies.yaml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # whitelist keys
+    COMPANIES_YAML.parent.mkdir(parents=True, exist_ok=True)
     out = {k: [str(s).strip() for s in (body.get(k) or []) if str(s).strip()]
            for k in ("greenhouse", "lever", "ashby")}
-    path.write_text(yaml.safe_dump(out, sort_keys=False), encoding="utf-8")
+    COMPANIES_YAML.write_text(yaml.safe_dump(out, sort_keys=False), encoding="utf-8")
     return {"ok": True, **out}
 
 
@@ -490,4 +517,6 @@ if _DIST.exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("webapp:app", host="127.0.0.1", port=8765, reload=False)
+    port = int(os.environ.get("PORT", "8765"))
+    host = os.environ.get("HOST", "127.0.0.1")
+    uvicorn.run("webapp:app", host=host, port=port, reload=False)
