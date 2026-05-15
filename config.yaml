@@ -1,0 +1,50 @@
+# App-level config.  Per-user data (contact, resume, targets, API keys) lives
+# in data/profile.json — edited via the web UI Settings page.
+#
+# This branch (local-llm) defaults to FREE providers (Groq + Gemini).
+# No Anthropic key required.  Get your free keys at:
+#   Groq:   https://console.groq.com/keys        (14,400 req/day free)
+#   Gemini: https://aistudio.google.com/apikey   (1M tokens/day free)
+
+providers:
+  scoring:
+    provider: groq
+    model:    llama-3.1-8b-instant   # fast + free
+  tailoring:
+    provider: gemini
+    model:    gemini-2.0-flash        # best free quality for cover letters
+  outreach:
+    provider: groq
+    model:    llama-3.3-70b-versatile # good writing, still free
+
+# Pricing is only used when provider = anthropic.  Free providers skip it.
+pricing:
+  claude-haiku-4-5-20251001: {input: 1.00, output: 5.00}
+  claude-sonnet-4-5:         {input: 3.00, output: 15.00}
+
+budget:
+  daily_usd: 1.00
+  stage_caps:
+    scoring:   0.30
+    tailoring: 0.50
+    outreach:  0.20
+
+scoring:
+  threshold: 70
+
+sources:
+  hn_who_is_hiring:
+    enabled: true
+    months_back: 1
+
+# --- switch back to Anthropic if you prefer ---
+# providers:
+#   scoring:
+#     provider: anthropic
+#     model:    claude-haiku-4-5-20251001
+#   tailoring:
+#     provider: anthropic
+#     model:    claude-sonnet-4-5
+#   outreach:
+#     provider: anthropic
+#     model:    claude-sonnet-4-5
