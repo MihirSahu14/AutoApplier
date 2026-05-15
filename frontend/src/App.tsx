@@ -10,16 +10,20 @@ export function App() {
 
   // On boot: if the (free-tier, ephemeral) backend has lost the profile but
   // we have a copy in localStorage, push it back transparently.
+  // Cap the whole attempt at 12 s — Render free cold-starts can take 30–60 s,
+  // so we give up and let the normal queries surface a real error instead of
+  // leaving the user staring at "Loading…" forever.
   useEffect(() => {
     let cancelled = false;
+    const deadline = new Promise<false>((res) => setTimeout(() => res(false), 12_000));
     (async () => {
       try {
-        const restored = await restoreProfileIfNeeded();
+        const restored = await Promise.race([restoreProfileIfNeeded(), deadline]);
         if (!cancelled && restored) {
           qc.invalidateQueries({ queryKey: ["setup-status"] });
           qc.invalidateQueries({ queryKey: ["profile"] });
         }
-      } catch { /* offline / cold start — UI will surface the error */ }
+      } catch { /* offline or cold start — queries below will surface the error */ }
       finally { if (!cancelled) setRestoring(false); }
     })();
     return () => { cancelled = true; };
@@ -39,7 +43,7 @@ export function App() {
   });
 
   if (restoring || setupLoading) {
-    return <div className="p-8 text-slate-500 text-sm">Loading…</div>;
+    return <WakingUp />;
   }
   if (setup && !setup.configured && loc.pathname !== "/setup") {
     return <Navigate to="/setup" replace />;
@@ -82,6 +86,21 @@ export function App() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function WakingUp() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), 4000); return () => clearTimeout(t); }, []);
+  return (
+    <div className="min-h-screen bg-[#0a0a10] flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+      <p className="text-slate-400 text-sm">
+        {slow
+          ? "Backend is waking up (Render free tier cold start — ~30 s)…"
+          : "Connecting…"}
+      </p>
     </div>
   );
 }
