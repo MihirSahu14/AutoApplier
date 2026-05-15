@@ -344,12 +344,14 @@ def api_draft_email(contact_id: int):
     cfg = cfg_mod.load()
     candidate = profile_mod.candidate_text(profile)
     profile_block = profile_mod.build_profile_block(profile, candidate)
+    o_cfg = cfg["providers"]["outreach"]
     try:
         draft = cold_email.draft_email(
             profile_block, candidate, dict(job), contact,
-            model=cfg["generation"]["model"],
+            provider=o_cfg["provider"],
+            model=o_cfg["model"],
             stage_caps=cfg["budget"]["stage_caps"],
-            pricing=cfg["pricing"],
+            pricing=cfg.get("pricing", {}),
         )
     except budget.BudgetExceeded as e:
         raise HTTPException(429, str(e))
@@ -477,15 +479,16 @@ def api_run_prefilter():
 def api_run_score():
     cfg = cfg_mod.load()
     stage_caps = cfg["budget"]["stage_caps"]
-    pricing = cfg["pricing"]
-    model = cfg["scoring"]["model"]
+    pricing = cfg.get("pricing", {})
+    s_cfg = cfg["providers"]["scoring"]
+    provider, model = s_cfg["provider"], s_cfg["model"]
     profile_block = profile_mod.build_profile_block()
 
     def _do():
         for j in db.unscored_jobs():
             try:
                 result = score_job(profile_block, dict(j), model=model,
-                                   stage_caps=stage_caps, pricing=pricing)
+                                   stage_caps=stage_caps, pricing=pricing, provider=provider
             except budget.BudgetExceeded:
                 break
             except Exception:

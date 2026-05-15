@@ -84,9 +84,11 @@ def score(limit: int = 0):
         console.print("[red]Profile not configured. Open the web UI and complete setup first.[/red]")
         raise typer.Exit(1)
     profile_block = profile_mod.build_profile_block()
-    model = cfg["scoring"]["model"]
+    s_cfg = cfg["providers"]["scoring"]
+    provider = s_cfg["provider"]
+    model = s_cfg["model"]
     stage_caps = cfg["budget"]["stage_caps"]
-    pricing = cfg["pricing"]
+    pricing = cfg.get("pricing", {})
 
     jobs = db.unscored_jobs()
     if limit:
@@ -106,7 +108,8 @@ def score(limit: int = 0):
     for j in track(jobs, description="Scoring"):
         try:
             result = score_job(
-                profile_block, dict(j), model=model, stage_caps=stage_caps, pricing=pricing,
+                profile_block, dict(j), model=model,
+                stage_caps=stage_caps, pricing=pricing, provider=provider,
             )
         except budget.BudgetExceeded as e:
             console.print(f"[yellow]{e}[/yellow]")

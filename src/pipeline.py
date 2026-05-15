@@ -5,7 +5,6 @@ from pathlib import Path
 
 from . import config as cfg_mod
 from . import budget, db, docx_render, profile as profile_mod, tailor
-
 from .paths import OUTPUT_DIR
 
 
@@ -40,9 +39,11 @@ def generate_package(job_id: int, *, cfg: dict | None = None, no_cover: bool = F
         raise ValueError(f"No job {job_id}")
     job = dict(job_row)
 
-    model = cfg["generation"]["model"]
+    t_cfg = cfg["providers"]["tailoring"]
+    provider = t_cfg["provider"]
+    model = t_cfg["model"]
     stage_caps = cfg["budget"]["stage_caps"]
-    pricing = cfg["pricing"]
+    pricing = cfg.get("pricing", {})
 
     candidate = profile_mod.candidate_text(profile)
     if not candidate:
@@ -53,19 +54,20 @@ def generate_package(job_id: int, *, cfg: dict | None = None, no_cover: bool = F
     profile_block = profile_mod.build_profile_block(profile, candidate)
 
     base = tailor.parse_base_resume(
-        candidate, model=model, stage_caps=stage_caps, pricing=pricing,
-        force=regen_base,
+        candidate, provider=provider, model=model,
+        stage_caps=stage_caps, pricing=pricing, force=regen_base,
     )
     tailored = tailor.tailor_resume(
-        base, job, profile_block, model=model, stage_caps=stage_caps, pricing=pricing,
+        base, job, profile_block, provider=provider, model=model,
+        stage_caps=stage_caps, pricing=pricing,
     )
-    # Override header with authoritative contact info from profile
     tailored["header"] = profile_mod.render_header_from_profile(profile)
 
     cover_text = None
     if not no_cover:
         cover_text = tailor.write_cover_letter(
-            base, job, profile_block, model=model, stage_caps=stage_caps, pricing=pricing,
+            base, job, profile_block, provider=provider, model=model,
+            stage_caps=stage_caps, pricing=pricing,
         )
 
     name = profile["contact"]["name"] or "candidate"

@@ -47,6 +47,7 @@ def empty_profile() -> dict:
         },
         "api_keys": {
             "anthropic": "", "hunter": "", "apollo": "", "serpapi": "",
+            "groq": "", "gemini": "",
         },
     }
 
@@ -79,11 +80,16 @@ def is_configured() -> bool:
 
 
 def anthropic_key() -> Optional[str]:
-    return load()["api_keys"].get("anthropic") or os.environ.get("ANTHROPIC_API_KEY") or None
+    return api_key("anthropic")
 
 
 def api_key(name: str) -> Optional[str]:
     return load()["api_keys"].get(name) or os.environ.get(f"{name.upper()}_API_KEY") or None
+
+
+def provider_key(provider: str) -> Optional[str]:
+    """Return the API key for a given provider name (groq, gemini, anthropic, etc.)."""
+    return api_key(provider) or None
 
 
 def candidate_text(p: Optional[dict] = None) -> str:

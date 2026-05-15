@@ -1,13 +1,19 @@
-# App-level config. Per-user data (contact info, resume, targets, API keys)
-# is collected through the Settings UI on first launch.
+# Copy to config.yaml and set your preferred providers.
+# Per-user data (contact, resume, targets, API keys) goes in data/profile.json
+# which is edited via the web UI Settings page.
 
-scoring:
-  model: claude-haiku-4-5-20251001
-  threshold: 70
+providers:
+  scoring:
+    provider: groq                   # FREE — change to 'anthropic' if you have credits
+    model:    llama-3.1-8b-instant
+  tailoring:
+    provider: gemini                 # FREE — best quality for cover letters at $0
+    model:    gemini-2.0-flash
+  outreach:
+    provider: groq
+    model:    llama-3.3-70b-versatile
 
-generation:
-  model: claude-sonnet-4-5
-
+# Pricing only matters for provider=anthropic. Free providers ignore this.
 pricing:
   claude-haiku-4-5-20251001: {input: 1.00, output: 5.00}
   claude-sonnet-4-5:         {input: 3.00, output: 15.00}
@@ -18,6 +24,9 @@ budget:
     scoring:   0.30
     tailoring: 0.50
     outreach:  0.20
+
+scoring:
+  threshold: 70
 
 sources:
   hn_who_is_hiring:

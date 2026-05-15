@@ -1,8 +1,11 @@
-"""Score jobs against the user's resume + targets using Claude (cheap model)."""
-import json
-from anthropic import Anthropic
+"""Score jobs against the user's resume + targets.
 
-from . import budget, profile as profile_mod
+Uses whichever provider is configured for the 'scoring' stage.
+Free providers (groq/gemini/ollama) skip the dollar budget check.
+"""
+import json
+
+from . import budget, llm, profile as profile_mod
 
 SYSTEM = """You are a job-fit scorer for a candidate applying to software roles.
 
@@ -35,9 +38,13 @@ Only return the JSON object, no prose."""
 
 
 def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
-              pricing: dict) -> dict:
-    budget.check("scoring", stage_caps)
-    client = Anthropic(api_key=profile_mod.anthropic_key())
+              pricing: dict, provider: str = "anthropic") -> dict:
+    """Score one job. Skips dollar-budget enforcement for free providers."""
+    api_key = profile_mod.provider_key(provider)
+
+    if not llm.is_free(provider):
+        budget.check("scoring", stage_caps)
+
     job_block = (
         f"Company: {job['company']}\n"
         f"Title: {job['title']}\n"
@@ -45,23 +52,16 @@ def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
         f"URL: {job['url']}\n\n"
         f"Description:\n{job['description'][:6000]}"
     )
-    msg = client.messages.create(
-        model=model,
-        max_tokens=800,
-        system=SYSTEM,
-        messages=[{
-            "role": "user",
-            "content": f"## CANDIDATE\n{profile_block}\n\n## JOB\n{job_block}\n\nReturn JSON only.",
-        }],
+    user = f"## CANDIDATE\n{profile_block}\n\n## JOB\n{job_block}\n\nReturn JSON only."
+
+    text, usage = llm.chat(
+        provider=provider, model=model, system=SYSTEM, user=user,
+        max_tokens=800, api_key=api_key,
     )
-    budget.record(
-        stage="scoring",
-        model=model,
-        input_tokens=msg.usage.input_tokens,
-        output_tokens=msg.usage.output_tokens,
-        pricing=pricing,
-    )
-    text = msg.content[0].text.strip()
+
+    if not llm.is_free(provider):
+        budget.record("scoring", model, usage.input_tokens, usage.output_tokens, pricing)
+
     if text.startswith("```"):
         text = text.split("```", 2)[1]
         if text.startswith("json"):
@@ -71,5 +71,4 @@ def score_job(profile_block: str, job: dict, model: str, stage_caps: dict,
 
 
 def build_profile_block(profile: dict = None, candidate_text: str = None) -> str:
-    """Thin wrapper kept for backward compatibility."""
     return profile_mod.build_profile_block(profile, candidate_text)

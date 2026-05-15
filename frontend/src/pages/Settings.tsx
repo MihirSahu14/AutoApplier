@@ -10,7 +10,7 @@ export function Settings() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["profile"], queryFn: api.getProfile });
   const [draft, setDraft] = useState<Profile | null>(null);
-  const [keys, setKeys] = useState({ anthropic: "", hunter: "", apollo: "", serpapi: "" });
+  const [keys, setKeys] = useState({ anthropic: "", hunter: "", apollo: "", serpapi: "", groq: "", gemini: "" });
   useEffect(() => { if (data) setDraft(structuredClone(data)); }, [data?.contact.name]);
   if (!draft) return <div className="text-slate-400">Loading…</div>;
 
@@ -123,12 +123,26 @@ export function Settings() {
 
       <section className="bg-[#11121c] border border-slate-800 rounded-lg p-5 mb-4">
         <h2 className="font-semibold mb-3">API keys</h2>
-        <p className="text-xs text-slate-500 mb-3">Leave blank to keep the existing key.</p>
+        <p className="text-xs text-slate-500 mb-3">Leave blank to keep the existing key. Groq + Gemini are free — get keys below.</p>
+        <div className="grid gap-3 mb-4">
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 grid gap-1">
+            <strong className="text-emerald-200">Free providers (no billing)</strong>
+            <span>• <strong>Groq</strong> — 14,400 req/day, very fast → <a href="https://console.groq.com/keys" target="_blank" className="underline">console.groq.com/keys</a></span>
+            <span>• <strong>Gemini</strong> — 1M tokens/day, best for cover letters → <a href="https://aistudio.google.com/apikey" target="_blank" className="underline">aistudio.google.com/apikey</a></span>
+          </div>
+        </div>
         <div className="grid md:grid-cols-2 gap-3">
-          {(["anthropic","hunter","apollo","serpapi"] as const).map((k) => (
-            <Field key={k} label={k} hint={`Current: ${(draft.api_keys as any)[k] || "not set"}`}>
+          {([
+            ["groq", "Groq (free — use for scoring)"],
+            ["gemini", "Gemini (free — use for cover letters)"],
+            ["anthropic", "Anthropic (paid — original)"],
+            ["hunter", "Hunter.io (contact lookup)"],
+            ["apollo", "Apollo.io (contact lookup)"],
+            ["serpapi", "SerpAPI"],
+          ] as const).map(([k, label]) => (
+            <Field key={k} label={label} hint={`Current: ${(draft.api_keys as any)[k] || "not set"}`}>
               <input type="password" className={inputCls}
-                     value={(keys as any)[k]}
+                     value={(keys as any)[k] || ""}
                      onChange={(e) => setKeys({ ...keys, [k]: e.target.value })} />
             </Field>
           ))}

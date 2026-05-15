@@ -36,7 +36,7 @@ export function Setup() {
       "no sponsorship", "will not sponsor", "cannot sponsor",
     ].join("\n"),
   });
-  const [keys, setKeys] = useState({ anthropic: "", hunter: "", apollo: "", serpapi: "" });
+  const [keys, setKeys] = useState({ anthropic: "", groq: "", gemini: "", hunter: "", apollo: "", serpapi: "" });
 
   useEffect(() => {
     if (!profile) return;
@@ -273,27 +273,36 @@ export function Setup() {
 
         {step === 5 && (
           <div className="grid gap-4">
-            <p className="text-sm text-slate-600">
-              You need an <strong>Anthropic API key</strong> for scoring and tailoring.
-              Get one at{" "}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank"
-                 className="text-indigo-400 underline">console.anthropic.com</a>.
-              Others are optional (used later for contact lookup).
-            </p>
-            <Field label="Anthropic API key *">
-              <input type="password" className={inputCls}
-                     value={keys.anthropic} placeholder="sk-ant-..."
-                     onChange={(e) => setKeys({ ...keys, anthropic: e.target.value })} />
-            </Field>
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 grid gap-1">
+              <strong className="text-emerald-200">Tip: use free providers instead of Anthropic</strong>
+              <span>• <strong>Groq</strong> (14,400 req/day free) → <a href="https://console.groq.com/keys" target="_blank" className="underline">console.groq.com/keys</a></span>
+              <span>• <strong>Gemini</strong> (1M tokens/day free) → <a href="https://aistudio.google.com/apikey" target="_blank" className="underline">aistudio.google.com/apikey</a></span>
+              <span className="text-slate-400 mt-1">After setup, switch providers in <code>config.yaml</code>.</span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <Field label="Groq API key (FREE)" hint="Best for scoring — fast + free">
+                <input type="password" className={inputCls}
+                       value={keys.groq} placeholder="gsk_..."
+                       onChange={(e) => setKeys({ ...keys, groq: e.target.value })} />
+              </Field>
+              <Field label="Gemini API key (FREE)" hint="Best for cover letters — free">
+                <input type="password" className={inputCls}
+                       value={keys.gemini} placeholder="AIza..."
+                       onChange={(e) => setKeys({ ...keys, gemini: e.target.value })} />
+              </Field>
+              <Field label="Anthropic API key (paid)" hint="Original provider — optional if using Groq+Gemini">
+                <input type="password" className={inputCls}
+                       value={keys.anthropic} placeholder="sk-ant-..."
+                       onChange={(e) => setKeys({ ...keys, anthropic: e.target.value })} />
+              </Field>
+            </div>
             <details className="text-sm">
-              <summary className="cursor-pointer text-slate-500">Optional keys (Hunter, Apollo, SerpAPI)</summary>
+              <summary className="cursor-pointer text-slate-500">Optional keys (contact lookup)</summary>
               <div className="grid gap-3 mt-3">
                 <Field label="Hunter.io"><input type="password" className={inputCls} value={keys.hunter}
                        onChange={(e) => setKeys({ ...keys, hunter: e.target.value })} /></Field>
                 <Field label="Apollo.io"><input type="password" className={inputCls} value={keys.apollo}
                        onChange={(e) => setKeys({ ...keys, apollo: e.target.value })} /></Field>
-                <Field label="SerpAPI"><input type="password" className={inputCls} value={keys.serpapi}
-                       onChange={(e) => setKeys({ ...keys, serpapi: e.target.value })} /></Field>
               </div>
             </details>
           </div>
