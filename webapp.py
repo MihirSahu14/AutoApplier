@@ -488,7 +488,7 @@ def api_run_score():
         for j in db.unscored_jobs():
             try:
                 result = score_job(profile_block, dict(j), model=model,
-                                   stage_caps=stage_caps, pricing=pricing, provider=provider
+                                   stage_caps=stage_caps, pricing=pricing, provider=provider)
             except budget.BudgetExceeded:
                 break
             except Exception:
